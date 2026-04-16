@@ -471,6 +471,19 @@ input::placeholder,textarea::placeholder { color:var(--txt-mute); }
 .var-action-btn.edit:hover { border-color:var(--navy); background:rgba(0,53,128,.06); }
 .var-action-btn.del:hover  { border-color:var(--red);  background:rgba(200,16,46,.06); }
 
+/* ── Bitácora ── */
+.btn-bitacora {
+  display:inline-flex; align-items:center; gap:5px;
+  padding:5px 10px; border-radius:6px; cursor:pointer;
+  font-size:10px; font-weight:700; letter-spacing:.04em; text-transform:uppercase;
+  border:1px solid rgba(0,53,128,.25); background:rgba(0,53,128,.06); color:#003580;
+  transition:all .15s; white-space:nowrap; -webkit-tap-highlight-color:transparent;
+}
+.btn-bitacora.has-data {
+  border-color:rgba(0,53,128,.35); background:rgba(0,53,128,.10); color:#003580;
+}
+.btn-bitacora:hover { background:rgba(0,53,128,.14); }
+
 .cq-metodo-panel.open { display:block; }
 .cq-metodo-panel p {
   margin:0; font-size:12px; line-height:1.65;
@@ -1480,6 +1493,10 @@ input::placeholder,textarea::placeholder { color:var(--txt-mute); }
       <span id="cf-nos" style="color:var(--red)">No conformes: 0</span>
     </div>
     <div style="display:flex;gap:8px;">
+      <button class="btn" id="btn-bitacora-insp" onclick="openBitacoraInspeccion()"
+        style="flex:1;padding:15px 0;background:rgba(0,53,128,.08);border:1.5px solid rgba(0,53,128,.25);border-radius:10px;font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#003580;cursor:pointer;">
+        Bitácora
+      </button>
       <button class="btn" id="btn-datos-etiq" onclick="openModalDatosEtiq()"
         style="flex:1;padding:15px 0;background:rgba(0,53,128,.08);border:1.5px solid rgba(0,53,128,.25);border-radius:10px;font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#003580;cursor:pointer;">
         Datos de la etiqueta
@@ -1918,7 +1935,133 @@ input::placeholder,textarea::placeholder { color:var(--txt-mute); }
 </div>
 
 
-<!-- ══ HISTORIAL ═══════════════════════════════════════ -->
+<!-- ══ MODAL BITÁCORA ETIQUETA ══════════════════════════════ -->
+<div id="modal-bitacora" style="display:none;position:fixed;inset:0;z-index:5100;background:rgba(10,18,40,.55);backdrop-filter:blur(4px);align-items:flex-start;justify-content:center;padding:16px;overflow-y:auto;" onclick="if(event.target===this)closeBitacoraModal();">
+  <div style="background:#fff;border-radius:16px;width:100%;max-width:600px;margin:auto;box-shadow:0 8px 48px rgba(0,32,96,.22);animation:fadeIn .2s ease;" onclick="event.stopPropagation()">
+    <!-- Header -->
+    <div style="padding:18px 20px 12px;border-bottom:0.5px solid rgba(0,32,96,.08);display:flex;align-items:center;gap:10px;position:sticky;top:0;background:#fff;border-radius:16px 16px 0 0;z-index:1;">
+      <div style="width:3px;height:18px;background:#003580;border-radius:2px;"></div>
+      <div style="flex:1;">
+        <div style="font-size:14px;font-weight:700;color:#003580;" id="bit-title">Bitácora</div>
+        <div style="font-size:11px;color:#8A9AB0;margin-top:1px;" id="bit-sub">—</div>
+      </div>
+      <button onclick="closeBitacoraModal()" style="width:30px;height:30px;background:rgba(0,32,96,.07);border:none;border-radius:50%;font-size:15px;cursor:pointer;color:#5A6A80;display:flex;align-items:center;justify-content:center;">✕</button>
+    </div>
+    <!-- Body -->
+    <div style="padding:16px 20px;display:flex;flex-direction:column;gap:0;">
+
+      <!-- SECCIÓN: Datos generales -->
+      <div style="font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:#003580;padding:8px 0 6px;border-bottom:0.5px solid rgba(0,32,96,.08);margin-bottom:10px;">Datos generales</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+        <div>
+          <label style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#5A6A80;display:block;margin-bottom:4px;">Código</label>
+          <input id="bit-codigo" type="text" placeholder="#Etiqueta"
+            oninput="onBitCodigoInput(this.value)"
+            style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid rgba(0,32,96,.12);border-radius:7px;font-size:13px;color:#0D1A2E;font-family:inherit;outline:none;" onfocus="this.style.borderColor='#003580'" onblur="this.style.borderColor='rgba(0,32,96,.12)'">
+        </div>
+        <div>
+          <label style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#5A6A80;display:block;margin-bottom:4px;">Línea</label>
+          <select id="bit-linea" onchange="applyBitRestrictions()"
+            style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid rgba(0,32,96,.12);border-radius:7px;font-size:13px;color:#0D1A2E;font-family:inherit;outline:none;background:#fff;appearance:none;-webkit-appearance:none;background-image:url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%228%22 fill=%22none%22%3E%3Cpath d=%22M1 1l5 5 5-5%22 stroke=%22%23003580%22 stroke-width=%221.5%22 stroke-linecap=%22round%22/%3E%3C/svg%3E');background-repeat:no-repeat;background-position:right 10px center;padding-right:30px;" onfocus="this.style.borderColor='#003580'" onblur="this.style.borderColor='rgba(0,32,96,.12)'">
+            <option value="">Seleccionar línea...</option>
+            <optgroup label="Flexografía">
+              <option value="FL1">FL1 · Aquaflex ELS-1609</option>
+              <option value="FL2">FL2 · OMET X6 530</option>
+              <option value="FL3">FL3 · OMET XFLEX 370</option>
+              <option value="FL4">FL4 · Aquaflex LX XMAS 1857</option>
+            </optgroup>
+            <optgroup label="Rotograbado">
+              <option value="RT5">RT5 · Huafeng 2006</option>
+              <option value="RT6">RT6 · Huafeng 10-1100K</option>
+              <option value="RT7">RT7 · Huafeng 2009</option>
+            </optgroup>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#5A6A80;display:block;margin-bottom:4px;">Fecha de actualización</label>
+          <input id="bit-fecha" type="date"
+            style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid rgba(0,32,96,.12);border-radius:7px;font-size:13px;color:#0D1A2E;font-family:inherit;outline:none;" onfocus="this.style.borderColor='#003580'" onblur="this.style.borderColor='rgba(0,32,96,.12)'">
+        </div>
+        <div>
+          <label style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#5A6A80;display:block;margin-bottom:4px;">Cliente</label>
+          <input id="bit-cliente" type="text" placeholder="Auto desde código" readonly
+            style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid rgba(0,32,96,.08);border-radius:7px;font-size:13px;color:#003580;font-family:inherit;outline:none;background:rgba(0,32,96,.03);font-weight:500;">
+        </div>
+        <div style="grid-column:span 2;">
+          <label style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#5A6A80;display:block;margin-bottom:4px;">Etiqueta</label>
+          <input id="bit-etiqueta" type="text" placeholder="Auto desde código" readonly
+            style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid rgba(0,32,96,.08);border-radius:7px;font-size:13px;color:#003580;font-family:inherit;outline:none;background:rgba(0,32,96,.03);font-weight:500;">
+        </div>
+      </div>
+
+      <!-- SECCIÓN: Características físicas -->
+      <div style="font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:#003580;padding:8px 0 6px;border-bottom:0.5px solid rgba(0,32,96,.08);margin-bottom:10px;">Características físicas</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+        <div><label style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#5A6A80;display:block;margin-bottom:4px;">Acabado</label><input id="bit-acabado" type="text" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid rgba(0,32,96,.12);border-radius:7px;font-size:13px;color:#0D1A2E;font-family:inherit;outline:none;" onfocus="this.style.borderColor='#003580'" onblur="this.style.borderColor='rgba(0,32,96,.12)'"></div>
+        <div><label style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#5A6A80;display:block;margin-bottom:4px;">Sustrato 1</label><input id="bit-s1" type="text" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid rgba(0,32,96,.12);border-radius:7px;font-size:13px;color:#0D1A2E;font-family:inherit;outline:none;" onfocus="this.style.borderColor='#003580'" onblur="this.style.borderColor='rgba(0,32,96,.12)'"></div>
+        <div><label style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#5A6A80;display:block;margin-bottom:4px;">Sustrato 2</label><input id="bit-s2" type="text" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid rgba(0,32,96,.12);border-radius:7px;font-size:13px;color:#0D1A2E;font-family:inherit;outline:none;" onfocus="this.style.borderColor='#003580'" onblur="this.style.borderColor='rgba(0,32,96,.12)'"></div>
+        <div><label style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#5A6A80;display:block;margin-bottom:4px;">Sustrato 3</label><input id="bit-s3" type="text" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid rgba(0,32,96,.12);border-radius:7px;font-size:13px;color:#0D1A2E;font-family:inherit;outline:none;" onfocus="this.style.borderColor='#003580'" onblur="this.style.borderColor='rgba(0,32,96,.12)'"></div>
+        <div><label style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#5A6A80;display:block;margin-bottom:4px;">Medida</label><input id="bit-medida" type="text" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid rgba(0,32,96,.12);border-radius:7px;font-size:13px;color:#0D1A2E;font-family:inherit;outline:none;" onfocus="this.style.borderColor='#003580'" onblur="this.style.borderColor='rgba(0,32,96,.12)'"></div>
+        <div><label style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#5A6A80;display:block;margin-bottom:4px;">Engrane</label><input id="bit-engrane" type="text" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid rgba(0,32,96,.12);border-radius:7px;font-size:13px;color:#0D1A2E;font-family:inherit;outline:none;" onfocus="this.style.borderColor='#003580'" onblur="this.style.borderColor='rgba(0,32,96,.12)'"></div>
+        <div><label style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#5A6A80;display:block;margin-bottom:4px;">Juego de cilindros</label><input id="bit-cilindros" type="text" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid rgba(0,32,96,.12);border-radius:7px;font-size:13px;color:#0D1A2E;font-family:inherit;outline:none;" onfocus="this.style.borderColor='#003580'" onblur="this.style.borderColor='rgba(0,32,96,.12)'"></div>
+        <div><label style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#5A6A80;display:block;margin-bottom:4px;">Suaje</label><input id="bit-suaje" type="text" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid rgba(0,32,96,.12);border-radius:7px;font-size:13px;color:#0D1A2E;font-family:inherit;outline:none;" onfocus="this.style.borderColor='#003580'" onblur="this.style.borderColor='rgba(0,32,96,.12)'"></div>
+        <div><label style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#5A6A80;display:block;margin-bottom:4px;">Potencia UV</label><input id="bit-potencia-uv" type="text" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid rgba(0,32,96,.12);border-radius:7px;font-size:13px;color:#0D1A2E;font-family:inherit;outline:none;" onfocus="this.style.borderColor='#003580'" onblur="this.style.borderColor='rgba(0,32,96,.12)'"></div>
+        <div><label style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#5A6A80;display:block;margin-bottom:4px;">% Tratamiento corona</label><input id="bit-corona" type="text" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid rgba(0,32,96,.12);border-radius:7px;font-size:13px;color:#0D1A2E;font-family:inherit;outline:none;" onfocus="this.style.borderColor='#003580'" onblur="this.style.borderColor='rgba(0,32,96,.12)'"></div>
+        <div><label style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#5A6A80;display:block;margin-bottom:4px;">Peso adhesivo</label><input id="bit-peso-adhesivo" type="text" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid rgba(0,32,96,.12);border-radius:7px;font-size:13px;color:#0D1A2E;font-family:inherit;outline:none;" onfocus="this.style.borderColor='#003580'" onblur="this.style.borderColor='rgba(0,32,96,.12)'"></div>
+        <div><label style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#5A6A80;display:block;margin-bottom:4px;">Proveedor</label><input id="bit-proveedor" type="text" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid rgba(0,32,96,.12);border-radius:7px;font-size:13px;color:#0D1A2E;font-family:inherit;outline:none;" onfocus="this.style.borderColor='#003580'" onblur="this.style.borderColor='rgba(0,32,96,.12)'"></div>
+      </div>
+
+      <!-- SECCIÓN: Parámetros de proceso -->
+      <div style="font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:#003580;padding:8px 0 6px;border-bottom:0.5px solid rgba(0,32,96,.08);margin-bottom:10px;">Parámetros de proceso</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px;">
+        <div><label style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#5A6A80;display:block;margin-bottom:4px;">Velocidad promedio</label><input id="bit-velocidad" type="text" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid rgba(0,32,96,.12);border-radius:7px;font-size:13px;color:#0D1A2E;font-family:inherit;outline:none;" onfocus="this.style.borderColor='#003580'" onblur="this.style.borderColor='rgba(0,32,96,.12)'"></div>
+        <div><label style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#5A6A80;display:block;margin-bottom:4px;">Tensión desbobinador</label><input id="bit-tension-des" type="text" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid rgba(0,32,96,.12);border-radius:7px;font-size:13px;color:#0D1A2E;font-family:inherit;outline:none;" onfocus="this.style.borderColor='#003580'" onblur="this.style.borderColor='rgba(0,32,96,.12)'"></div>
+        <div><label style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#5A6A80;display:block;margin-bottom:4px;">Tensión rebobinador</label><input id="bit-tension-reb" type="text" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid rgba(0,32,96,.12);border-radius:7px;font-size:13px;color:#0D1A2E;font-family:inherit;outline:none;" onfocus="this.style.borderColor='#003580'" onblur="this.style.borderColor='rgba(0,32,96,.12)'"></div>
+        <div style="grid-column:span 3;"><label style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#5A6A80;display:block;margin-bottom:4px;">Grabado</label><input id="bit-grabado" type="text" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid rgba(0,32,96,.12);border-radius:7px;font-size:13px;color:#0D1A2E;font-family:inherit;outline:none;" onfocus="this.style.borderColor='#003580'" onblur="this.style.borderColor='rgba(0,32,96,.12)'"></div>
+      </div>
+
+      <!-- SECCIÓN: Tintas (tabla 9 colores) -->
+      <div style="font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:#003580;padding:8px 0 6px;border-bottom:0.5px solid rgba(0,32,96,.08);margin-bottom:10px;">Tintas por color (1–10)</div>
+      <div style="overflow-x:auto;margin-bottom:10px;">
+        <table id="bit-tintas-table" style="width:100%;border-collapse:collapse;font-size:11px;min-width:600px;">
+          <thead><tr style="background:rgba(0,53,128,.06);"><td style="padding:6px 8px;font-weight:700;color:#003580;border:0.5px solid rgba(0,32,96,.12);min-width:100px;">Campo</td><td style="padding:6px 8px;font-weight:700;color:#003580;text-align:center;border:0.5px solid rgba(0,32,96,.12);min-width:70px;">1</td><td style="padding:6px 8px;font-weight:700;color:#003580;text-align:center;border:0.5px solid rgba(0,32,96,.12);min-width:70px;">2</td><td style="padding:6px 8px;font-weight:700;color:#003580;text-align:center;border:0.5px solid rgba(0,32,96,.12);min-width:70px;">3</td><td style="padding:6px 8px;font-weight:700;color:#003580;text-align:center;border:0.5px solid rgba(0,32,96,.12);min-width:70px;">4</td><td style="padding:6px 8px;font-weight:700;color:#003580;text-align:center;border:0.5px solid rgba(0,32,96,.12);min-width:70px;">5</td><td style="padding:6px 8px;font-weight:700;color:#003580;text-align:center;border:0.5px solid rgba(0,32,96,.12);min-width:70px;">6</td><td style="padding:6px 8px;font-weight:700;color:#003580;text-align:center;border:0.5px solid rgba(0,32,96,.12);min-width:70px;">7</td><td style="padding:6px 8px;font-weight:700;color:#003580;text-align:center;border:0.5px solid rgba(0,32,96,.12);min-width:70px;">8</td><td style="padding:6px 8px;font-weight:700;color:#003580;text-align:center;border:0.5px solid rgba(0,32,96,.12);min-width:70px;">9</td><td style="padding:6px 8px;font-weight:700;color:#003580;text-align:center;border:0.5px solid rgba(0,32,96,.12);min-width:70px;">10</td></tr></thead>
+          <tbody><tr><td style="padding:6px 8px;font-weight:600;color:#5A6A80;border:0.5px solid rgba(0,32,96,.10);background:rgba(0,32,96,.02);">Anilox</td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Anilox" data-col="1" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Anilox" data-col="2" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Anilox" data-col="3" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Anilox" data-col="4" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Anilox" data-col="5" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Anilox" data-col="6" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Anilox" data-col="7" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Anilox" data-col="8" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Anilox" data-col="9" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Anilox" data-col="10" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td></tr><tr><td style="padding:6px 8px;font-weight:600;color:#5A6A80;border:0.5px solid rgba(0,32,96,.10);background:rgba(0,32,96,.02);">BCM</td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="BCM" data-col="1" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="BCM" data-col="2" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="BCM" data-col="3" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="BCM" data-col="4" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="BCM" data-col="5" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="BCM" data-col="6" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="BCM" data-col="7" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="BCM" data-col="8" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="BCM" data-col="9" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="BCM" data-col="10" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td></tr><tr><td style="padding:6px 8px;font-weight:600;color:#5A6A80;border:0.5px solid rgba(0,32,96,.10);background:rgba(0,32,96,.02);">Pantone</td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Pantone" data-col="1" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Pantone" data-col="2" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Pantone" data-col="3" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Pantone" data-col="4" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Pantone" data-col="5" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Pantone" data-col="6" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Pantone" data-col="7" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Pantone" data-col="8" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Pantone" data-col="9" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Pantone" data-col="10" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td></tr><tr><td style="padding:6px 8px;font-weight:600;color:#5A6A80;border:0.5px solid rgba(0,32,96,.10);background:rgba(0,32,96,.02);">Proveedor</td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Proveedor" data-col="1" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Proveedor" data-col="2" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Proveedor" data-col="3" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Proveedor" data-col="4" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Proveedor" data-col="5" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Proveedor" data-col="6" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Proveedor" data-col="7" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Proveedor" data-col="8" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Proveedor" data-col="9" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Proveedor" data-col="10" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td></tr><tr><td style="padding:6px 8px;font-weight:600;color:#5A6A80;border:0.5px solid rgba(0,32,96,.10);background:rgba(0,32,96,.02);">Sticky Back</td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Sticky Back" data-col="1" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Sticky Back" data-col="2" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Sticky Back" data-col="3" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Sticky Back" data-col="4" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Sticky Back" data-col="5" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Sticky Back" data-col="6" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Sticky Back" data-col="7" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Sticky Back" data-col="8" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Sticky Back" data-col="9" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Sticky Back" data-col="10" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td></tr><tr><td style="padding:6px 8px;font-weight:600;color:#5A6A80;border:0.5px solid rgba(0,32,96,.10);background:rgba(0,32,96,.02);">Temperatura secado</td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Temperatura secado" data-col="1" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Temperatura secado" data-col="2" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Temperatura secado" data-col="3" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Temperatura secado" data-col="4" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Temperatura secado" data-col="5" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Temperatura secado" data-col="6" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Temperatura secado" data-col="7" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Temperatura secado" data-col="8" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Temperatura secado" data-col="9" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Temperatura secado" data-col="10" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td></tr><tr><td style="padding:6px 8px;font-weight:600;color:#5A6A80;border:0.5px solid rgba(0,32,96,.10);background:rgba(0,32,96,.02);">Viscosidad</td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Viscosidad" data-col="1" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Viscosidad" data-col="2" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Viscosidad" data-col="3" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Viscosidad" data-col="4" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Viscosidad" data-col="5" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Viscosidad" data-col="6" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Viscosidad" data-col="7" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Viscosidad" data-col="8" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Viscosidad" data-col="9" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Viscosidad" data-col="10" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td></tr><tr><td style="padding:6px 8px;font-weight:600;color:#5A6A80;border:0.5px solid rgba(0,32,96,.10);background:rgba(0,32,96,.02);">Secados</td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Secados" data-col="1" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Secados" data-col="2" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Secados" data-col="3" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Secados" data-col="4" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Secados" data-col="5" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Secados" data-col="6" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Secados" data-col="7" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Secados" data-col="8" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Secados" data-col="9" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Secados" data-col="10" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td></tr><tr><td style="padding:6px 8px;font-weight:600;color:#5A6A80;border:0.5px solid rgba(0,32,96,.10);background:rgba(0,32,96,.02);">L</td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="L" data-col="1" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="L" data-col="2" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="L" data-col="3" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="L" data-col="4" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="L" data-col="5" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="L" data-col="6" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="L" data-col="7" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="L" data-col="8" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="L" data-col="9" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="L" data-col="10" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td></tr><tr><td style="padding:6px 8px;font-weight:600;color:#5A6A80;border:0.5px solid rgba(0,32,96,.10);background:rgba(0,32,96,.02);">A</td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="A" data-col="1" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="A" data-col="2" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="A" data-col="3" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="A" data-col="4" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="A" data-col="5" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="A" data-col="6" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="A" data-col="7" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="A" data-col="8" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="A" data-col="9" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="A" data-col="10" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td></tr><tr><td style="padding:6px 8px;font-weight:600;color:#5A6A80;border:0.5px solid rgba(0,32,96,.10);background:rgba(0,32,96,.02);">B</td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="B" data-col="1" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="B" data-col="2" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="B" data-col="3" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="B" data-col="4" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="B" data-col="5" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="B" data-col="6" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="B" data-col="7" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="B" data-col="8" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="B" data-col="9" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="B" data-col="10" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td></tr><tr><td style="padding:6px 8px;font-weight:600;color:#5A6A80;border:0.5px solid rgba(0,32,96,.10);background:rgba(0,32,96,.02);">Densidad</td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Densidad" data-col="1" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Densidad" data-col="2" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Densidad" data-col="3" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Densidad" data-col="4" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Densidad" data-col="5" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Densidad" data-col="6" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Densidad" data-col="7" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Densidad" data-col="8" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Densidad" data-col="9" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Densidad" data-col="10" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td></tr><tr><td style="padding:6px 8px;font-weight:600;color:#5A6A80;border:0.5px solid rgba(0,32,96,.10);background:rgba(0,32,96,.02);">Solvente</td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Solvente" data-col="1" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Solvente" data-col="2" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Solvente" data-col="3" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Solvente" data-col="4" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Solvente" data-col="5" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Solvente" data-col="6" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Solvente" data-col="7" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Solvente" data-col="8" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Solvente" data-col="9" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Solvente" data-col="10" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td></tr><tr><td style="padding:6px 8px;font-weight:600;color:#5A6A80;border:0.5px solid rgba(0,32,96,.10);background:rgba(0,32,96,.02);">Línea de tinta</td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Línea de tinta" data-col="1" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Línea de tinta" data-col="2" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Línea de tinta" data-col="3" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Línea de tinta" data-col="4" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Línea de tinta" data-col="5" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Línea de tinta" data-col="6" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Línea de tinta" data-col="7" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Línea de tinta" data-col="8" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Línea de tinta" data-col="9" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td><td style="border:0.5px solid rgba(0,32,96,.10);padding:2px;"><input data-campo="Línea de tinta" data-col="10" type="text" style="width:100%;padding:5px 4px;border:none;outline:none;font-size:11px;background:transparent;font-family:inherit;color:#0D1A2E;" /></td></tr></tbody>
+        </table>
+      </div>
+
+      <!-- Observaciones -->
+      <div style="font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:#003580;padding:8px 0 6px;border-bottom:0.5px solid rgba(0,32,96,.08);margin-bottom:10px;">Observaciones</div>
+      <textarea id="bit-observaciones" rows="3" placeholder="Observaciones generales..."
+        style="width:100%;box-sizing:border-box;padding:9px 12px;border:1.5px solid rgba(0,32,96,.12);border-radius:8px;font-size:13px;color:#0D1A2E;font-family:inherit;outline:none;resize:vertical;line-height:1.5;margin-bottom:10px;" onfocus="this.style.borderColor='#003580'" onblur="this.style.borderColor='rgba(0,32,96,.12)'"></textarea>
+    </div>
+
+    <!-- Footer sticky -->
+    <div style="padding:14px 20px;border-top:0.5px solid rgba(0,32,96,.08);display:flex;gap:10px;position:sticky;bottom:0;background:#fff;border-radius:0 0 16px 16px;">
+      <button onclick="closeBitacoraModal()" style="flex:1;padding:11px;border:1.5px solid rgba(0,32,96,.18);border-radius:8px;background:transparent;font-size:13px;font-weight:600;color:#5A6A80;cursor:pointer;">Cancelar</button>
+      <button onclick="saveBitacora()" style="flex:2;padding:11px;background:#003580;border:none;border-radius:8px;font-size:13px;font-weight:700;color:#fff;cursor:pointer;">Guardar bitácora</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL BITÁCORA VISTA (Perfil Calidad) ═════════════ -->
+<div id="modal-bitacora-view" style="display:none;position:fixed;inset:0;z-index:5200;background:rgba(10,18,40,.55);backdrop-filter:blur(4px);align-items:flex-start;justify-content:center;padding:16px;overflow-y:auto;" onclick="if(event.target===this)closeBitacoraView();">
+  <div style="background:#fff;border-radius:16px;width:100%;max-width:560px;margin:auto;box-shadow:0 8px 48px rgba(0,32,96,.22);animation:fadeIn .2s ease;" onclick="event.stopPropagation()">
+    <div style="padding:18px 20px 12px;border-bottom:0.5px solid rgba(0,32,96,.08);display:flex;align-items:center;gap:10px;position:sticky;top:0;background:#fff;border-radius:16px 16px 0 0;z-index:1;">
+      <div style="width:3px;height:18px;background:#003580;border-radius:2px;"></div>
+      <div style="flex:1;">
+        <div style="font-size:14px;font-weight:700;color:#003580;" id="bitv-title">Bitácora</div>
+        <div style="font-size:11px;color:#8A9AB0;margin-top:1px;" id="bitv-sub">—</div>
+      </div>
+      <button onclick="closeBitacoraView()" style="width:30px;height:30px;background:rgba(0,32,96,.07);border:none;border-radius:50%;font-size:15px;cursor:pointer;color:#5A6A80;display:flex;align-items:center;justify-content:center;">✕</button>
+    </div>
+    <div style="padding:16px 20px;max-height:65vh;overflow-y:auto;" id="bitv-body"></div>
+    <div style="padding:14px 20px;border-top:0.5px solid rgba(0,32,96,.08);display:flex;gap:10px;background:#fff;border-radius:0 0 16px 16px;">
+      <button onclick="closeBitacoraView()" style="flex:1;padding:11px;border:1.5px solid rgba(0,32,96,.18);border-radius:8px;background:transparent;font-size:13px;font-weight:600;color:#5A6A80;cursor:pointer;">Cerrar</button>
+      <button onclick="imprimirBitacora()" id="btn-imprimir-bit" style="flex:1;padding:11px;background:#003580;border:none;border-radius:8px;font-size:13px;font-weight:700;color:#fff;cursor:pointer;display:none;">🖨️ Imprimir</button>
+    </div>
+  </div>
+</div>
+
 <div id="view-historial" class="view">
   <div class="topbar">
     <div class="btn-back" onclick="goTo('view-home')"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M10 3L5 8L10 13" stroke="#003580" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
@@ -2017,6 +2160,13 @@ window.addEventListener('load', function() {
         DB_ETIQUETAS[c.key] = data;
       }
     });
+    if (document.getElementById('etiq-list') && document.getElementById('vtab-etiq')?.style.display !== 'none') renderEtiqList();
+  });
+  // Firebase listener for bitácoras
+  db.ref('imd_bitacoras').on('value', snap => {
+    if (!snap.exists()) return;
+    if (!state.bitacoras) state.bitacoras = {};
+    snap.forEach(c => { state.bitacoras[c.key] = c.val(); });
     if (document.getElementById('etiq-list') && document.getElementById('vtab-etiq')?.style.display !== 'none') renderEtiqList();
   });
 });
@@ -2301,6 +2451,7 @@ let state = {
   respuestasOriginales:  null,
   itemsPendienteIds:     null,
   timestampOriginal:     null,
+  bitacoras:             {}, // key: #etiqueta → bitácora data
 };
 
 /* ══════════════════════════════════════════════════════════
@@ -2476,15 +2627,33 @@ function openModalArea() {
 
 async function checkArranquesPendientes() {
   try {
-    const snap = await db.ref('inspecciones')
-      .orderByChild('pendiente').equalTo(true).once('value');
+    // Traer TODAS las inspecciones de arranque del perfil calidad2
+    // para atrapar tanto las nuevas (pendiente:true) como las antiguas (sin campo pendiente)
+    const snap = await db.ref('inspecciones').once('value');
     if (snap.exists()) {
       const pendientes = [];
       snap.forEach(c => {
         const v = c.val();
-        pendientes.push({ key: c.key, maquina: v.maquina, turno: v.turno, fecha: v.fecha, nos: v.noConformes, op: v.op || '—', numEtiq: v.numEtiq||'', nombreEtiq: v.nombreEtiq||'', nomina: v.nomina||'', audNombre: v.audNombre||'', audPuesto: v.audPuesto||'', respuestas: v.respuestas||{} });
+        // Condición: es arranque de calidad, tiene NC > 0, y NO está explícitamente resuelta
+        const esArranqueCalidad = v.tipo === 'arranque' && v.rol === 'calidad2';
+        const tieneNC           = (v.noConformes || 0) > 0;
+        const resuelta          = v.pendiente === false || !!v.resueltoPor || !!v.timestampCierre;
+        if (esArranqueCalidad && tieneNC && !resuelta) {
+          pendientes.push({
+            key: c.key, maquina: v.maquina, turno: v.turno, fecha: v.fecha,
+            nos: v.noConformes, op: v.op || '—',
+            numEtiq: v.numEtiq||'', nombreEtiq: v.nombreEtiq||'',
+            nomina: v.nomina||'', audNombre: v.audNombre||'',
+            audPuesto: v.audPuesto||'', respuestas: v.respuestas||{}
+          });
+        }
       });
-      if (pendientes.length > 0) { showPendientesModal(pendientes); return; }
+      if (pendientes.length > 0) {
+        // Ordenar del más reciente al más antiguo
+        pendientes.sort((a, b) => (b.timestamp||0) - (a.timestamp||0));
+        showPendientesModal(pendientes);
+        return;
+      }
     }
   } catch(e) { /* si falla Firebase, abrir igualmente */ }
   _doOpenModalArea();
@@ -3242,13 +3411,17 @@ function renderEtiqList() {
   body.innerHTML = visible.map(k => {
     const e = DB_ETIQUETAS[k];
     const tipoBadge = e.tipo ? `<span style="font-size:9px;font-weight:700;background:rgba(0,53,128,.09);color:#003580;border-radius:4px;padding:2px 5px;margin-left:5px;">${tipoMap[e.tipo]||e.tipo}</span>` : '';
-    return `<div class="var-row" style="margin-bottom:7px;">
+    const hasBit = !!state.bitacoras?.[k];
+    return `<div class="var-row" style="margin-bottom:7px;flex-wrap:wrap;gap:8px;">
       <div class="var-row-info">
         <div class="var-row-name" style="font-size:12px;"># ${k}${tipoBadge}</div>
         <div style="font-size:13px;font-weight:600;color:#0D1A2E;margin:2px 0;">${e.nombre || '—'}</div>
         <div class="var-row-meta" style="font-size:11px;">${e.cliente || ''}</div>
       </div>
-      <div class="var-row-actions">
+      <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;">
+        <button class="btn-bitacora${hasBit?' has-data':''}" onclick="openBitacoraModal('${k}')">
+          ${hasBit ? '📋 Ver bitácora' : '+ Agregar bitácora'}
+        </button>
         <button class="var-action-btn edit" onclick="openEtiqModal('${k}')" title="Editar">✏️</button>
       </div>
     </div>`;
@@ -3314,6 +3487,415 @@ function saveEtiq() {
   closeEtiqModal();
   renderEtiqList();
   toast(etiqEditKey ? 'Etiqueta actualizada' : 'Etiqueta creada');
+}
+
+/* ══════════════════════════════════════════════════════════
+   BITÁCORA DE ETIQUETAS
+══════════════════════════════════════════════════════════ */
+let bitacoraKeyActual = null;
+
+function openBitacoraInspeccion() {
+  const numEtiq = state.inspeccion?.numEtiq || '';
+  const nombreEtiq = state.inspeccion?.nombreEtiq || numEtiq;
+  const b = state.bitacoras?.[numEtiq];
+
+  document.getElementById('bitv-title').textContent = numEtiq ? 'Bitácora # ' + numEtiq : 'Bitácora';
+  document.getElementById('bitv-sub').textContent   = nombreEtiq || '—';
+
+  const body = document.getElementById('bitv-body');
+
+  if (!numEtiq || !b) {
+    body.innerHTML = `
+      <div style="text-align:center;padding:40px 20px;">
+        <div style="font-size:40px;margin-bottom:12px;">📋</div>
+        <div style="font-size:14px;font-weight:600;color:#003580;margin-bottom:6px;">Bitácora no cargada</div>
+        <div style="font-size:12px;color:#8A9AB0;line-height:1.6;">
+          ${!numEtiq ? 'No hay número de etiqueta registrado para esta inspección.' : 'La bitácora de esta etiqueta aún no ha sido registrada por el Administrador.'}
+        </div>
+      </div>`;
+  } else {
+    const row = (label, val) => val
+      ? `<div style="display:flex;justify-content:space-between;align-items:flex-start;padding:8px 0;border-bottom:0.5px solid rgba(0,32,96,.06);gap:12px;">
+           <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#8A9AB0;flex-shrink:0;">${label}</span>
+           <span style="font-size:12px;font-weight:500;color:#003580;text-align:right;">${val}</span>
+         </div>` : '';
+
+    const secTitle = t => `<div style="font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:#003580;padding:10px 0 4px;border-bottom:0.5px solid rgba(0,32,96,.1);margin-bottom:4px;">${t}</div>`;
+
+    let html = secTitle('Datos generales');
+    html += row('Código',       b.codigo);
+    html += row('Línea',        b.linea);
+    html += row('Fecha',        b.fecha);
+    html += row('Cliente',      b.cliente);
+    html += row('Etiqueta',     b.etiqueta);
+
+    html += secTitle('Características físicas');
+    html += row('Acabado',        b.acabado);
+    html += row('Sustrato 1',     b.s1);
+    html += row('Sustrato 2',     b.s2);
+    html += row('Sustrato 3',     b.s3);
+    html += row('Medida',         b.medida);
+    html += row('Engrane',        b.engrane);
+    html += row('Juego cilindros',b.cilindros);
+    html += row('Suaje',          b.suaje);
+    html += row('Potencia UV',    b['potencia-uv']);
+    html += row('% Corona',       b.corona);
+    html += row('Peso adhesivo',  b['peso-adhesivo']);
+    html += row('Proveedor',      b.proveedor);
+
+    html += secTitle('Parámetros de proceso');
+    html += row('Velocidad promedio',    b.velocidad);
+    html += row('Tensión desbobinador',  b['tension-des']);
+    html += row('Tensión rebobinador',   b['tension-reb']);
+    html += row('Grabado',               b.grabado);
+
+    // Tabla de tintas
+    if (b.tintas && Object.keys(b.tintas).length > 0) {
+      html += secTitle('Tintas por color');
+      const cols = Object.values(b.tintas).flatMap(c => Object.keys(c)).filter((v,i,a) => a.indexOf(v)===i).sort((a,z)=>+a-+z);
+      const CAMPOS_TINTAS = ['Anilox','BCM','Pantone','Proveedor','Sticky Back','Temperatura secado','Viscosidad','Secados','L','A','B','Densidad','Solvente','Línea de tinta'];
+      html += `<div style="overflow-x:auto;margin-top:6px;"><table style="width:100%;border-collapse:collapse;font-size:11px;">
+        <thead><tr style="background:rgba(0,53,128,.06);">
+          <td style="padding:5px 7px;font-weight:700;color:#003580;border:0.5px solid rgba(0,32,96,.1);">Campo</td>
+          ${cols.map(c=>`<td style="padding:5px 7px;font-weight:700;color:#003580;text-align:center;border:0.5px solid rgba(0,32,96,.1);">${c}</td>`).join('')}
+        </tr></thead><tbody>
+        ${CAMPOS_TINTAS.filter(campo => b.tintas[campo]).map(campo => {
+          const vals = b.tintas[campo];
+          return `<tr><td style="padding:5px 7px;font-weight:600;color:#5A6A80;border:0.5px solid rgba(0,32,96,.08);background:rgba(0,32,96,.02);">${campo}</td>
+          ${cols.map(c=>`<td style="padding:5px 7px;text-align:center;border:0.5px solid rgba(0,32,96,.08);">${vals[c]||''}</td>`).join('')}
+          </tr>`;}).join('')}
+        </tbody></table></div>`;
+    }
+
+    if (b.observaciones) {
+      html += secTitle('Observaciones');
+      html += `<div style="font-size:12px;color:#5A6A80;line-height:1.6;padding:4px 0;">${b.observaciones}</div>`;
+    }
+
+    body.innerHTML = html;
+  }
+
+  // Show/hide print button
+  document.getElementById('btn-imprimir-bit').style.display = (!numEtiq || !b) ? 'none' : '';
+
+  document.getElementById('modal-bitacora-view').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+
+function closeBitacoraView() {
+  document.getElementById('modal-bitacora-view').style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+function imprimirBitacora() {
+  const numEtiq = state.inspeccion?.numEtiq || '';
+  const b = state.bitacoras?.[numEtiq];
+  if (!b) return;
+
+  const fila = (label, val) => val
+    ? `<tr><td class="lbl">${label}</td><td class="val">${val}</td></tr>` : '';
+
+  let tintasHtml = '';
+  if (b.tintas && Object.keys(b.tintas).length > 0) {
+    const cols = Object.values(b.tintas).flatMap(c=>Object.keys(c)).filter((v,i,a)=>a.indexOf(v)===i).sort((a,z)=>+a-+z);
+    const CAMPOS_TINTAS_PRINT = ['Anilox','BCM','Pantone','Proveedor','Sticky Back','Temperatura secado','Viscosidad','Secados','L','A','B','Densidad','Solvente','Línea de tinta'];
+    tintasHtml = `<h3>TINTAS POR COLOR</h3>
+      <table class="tintas"><thead><tr><th>Campo</th>${cols.map(c=>`<th>${c}</th>`).join('')}</tr></thead>
+      <tbody>${CAMPOS_TINTAS_PRINT.filter(c => b.tintas[c]).map(c=>{
+        const vals=b.tintas[c];
+        return `<tr><td class="lbl">${c}</td>${cols.map(col=>`<td>${vals[col]||''}</td>`).join('')}</tr>`;
+      }).join('')}</tbody></table>`;
+  }
+
+  const win = window.open('','_blank','width=900,height=700');
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+  <title>Bitácora ${numEtiq}</title>
+  <style>
+    @page { size: letter; margin: 18mm 16mm; }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { font-family:Arial,sans-serif; font-size:10pt; color:#000; }
+    .header { text-align:center; margin-bottom:14px; border-bottom:2px solid #003580; padding-bottom:8px; }
+    .header h1 { font-size:14pt; font-weight:bold; text-transform:uppercase; letter-spacing:.06em; color:#003580; }
+    .header p  { font-size:8.5pt; color:#555; margin-top:4px; }
+    h3 { font-size:8.5pt; font-weight:bold; text-transform:uppercase; letter-spacing:.07em;
+         color:#003580; border-bottom:1px solid #ccc; padding-bottom:3px; margin:12px 0 5px; }
+    table { width:100%; border-collapse:collapse; margin-bottom:4px; }
+    td, th { border:0.5px solid #bbb; padding:4px 7px; font-size:9pt; vertical-align:top; }
+    td.lbl { font-weight:bold; color:#555; width:36%; background:#f4f6fb; white-space:nowrap; }
+    td.val { color:#000; }
+    .grid { display:grid; grid-template-columns:1fr 1fr; gap:0 10px; }
+    table.tintas thead th { background:#e8ecf5; font-size:8pt; color:#003580; text-align:center; }
+    table.tintas td { font-size:8pt; text-align:center; }
+    table.tintas td.lbl { text-align:left; width:auto; }
+    .obs { font-size:9pt; line-height:1.6; padding:4px 0; }
+    @media print { body { -webkit-print-color-adjust:exact; print-color-adjust:exact; } }
+  </style></head><body>
+  <div class="header">
+    <h1>Bitácora de impresión</h1>
+    <p>F2-IN2-PR-IM-01 Rev. 2</p>
+  </div>
+
+  <h3>Datos generales</h3>
+  <table><tbody>
+    ${fila('Código',  b.codigo)}${fila('Línea',b.linea)}
+    ${fila('Fecha',  b.fecha)}${fila('Cliente',b.cliente)}
+    ${fila('Etiqueta',b.etiqueta)}
+  </tbody></table>
+
+  <h3>Características físicas</h3>
+  <div class="grid">
+    <table><tbody>
+      ${fila('Acabado',    b.acabado)}${fila('Sustrato 1',b.s1)}
+      ${fila('Sustrato 2', b.s2)}${fila('Sustrato 3',b.s3)}
+      ${fila('Medida',     b.medida)}${fila('Engrane',b.engrane)}
+    </tbody></table>
+    <table><tbody>
+      ${fila('Juego cilindros',b.cilindros)}${fila('Suaje',b.suaje)}
+      ${fila('Potencia UV',b['potencia-uv'])}${fila('% Corona',b.corona)}
+      ${fila('Peso adhesivo',b['peso-adhesivo'])}${fila('Proveedor',b.proveedor)}
+    </tbody></table>
+  </div>
+
+  <h3>Parámetros de proceso</h3>
+  <table><tbody>
+    ${fila('Velocidad promedio',b.velocidad)}${fila('Tensión desbobinador',b['tension-des'])}
+    ${fila('Tensión rebobinador',b['tension-reb'])}${fila('Grabado',b.grabado)}
+  </tbody></table>
+
+  ${tintasHtml}
+
+  ${b.observaciones ? `<h3>Observaciones</h3><div class="obs">${b.observaciones}</div>` : ''}
+
+  </body></html>`);
+  win.document.close();
+  win.focus();
+  setTimeout(() => { win.print(); }, 400);
+}
+
+function openBitacoraModal(key) {
+  bitacoraKeyActual = key;
+  const e = DB_ETIQUETAS[key] || {};
+  const b = state.bitacoras?.[key] || {};
+  const isNew = !state.bitacoras?.[key];
+
+  document.getElementById('bit-title').textContent = 'Bitácora # ' + key;
+  document.getElementById('bit-sub').textContent   = e.nombre || '—';
+
+  // Código auto-filled, readonly
+  document.getElementById('bit-codigo').value    = key;
+  document.getElementById('bit-codigo').readOnly = true;
+  document.getElementById('bit-codigo').style.background = 'rgba(0,32,96,.03)';
+
+  // Cliente y Etiqueta desde DB
+  document.getElementById('bit-cliente').value   = e.cliente || b.cliente || '';
+  document.getElementById('bit-etiqueta').value  = e.nombre  || b.etiqueta || '';
+
+  // Fecha: manual la primera vez, auto en cambios
+  const hoy = new Date().toISOString().split('T')[0];
+  document.getElementById('bit-fecha').value     = isNew ? '' : hoy;
+  document.getElementById('bit-fecha').readOnly  = !isNew;
+  document.getElementById('bit-fecha').style.background = !isNew ? 'rgba(0,32,96,.03)' : '';
+
+  // Línea y otros campos simples
+  const simpleFields = ['acabado','s1','s2','s3','medida','engrane','cilindros','suaje',
+    'potencia-uv','corona','peso-adhesivo','proveedor','velocidad','tension-des','tension-reb','grabado','observaciones'];
+  // Restore linea select
+  const lineaSel = document.getElementById('bit-linea');
+  if (lineaSel) {
+    lineaSel.value = b.linea || '';
+  }
+  simpleFields.forEach(f => {
+    const el = document.getElementById('bit-' + f);
+    if (el) el.value = b[f] || '';
+  });
+
+  // Tabla de tintas
+  const tintas = b.tintas || {};
+  document.querySelectorAll('#bit-tintas-table input[data-campo]').forEach(inp => {
+    const campo = inp.dataset.campo;
+    const col   = inp.dataset.col;
+    inp.value   = tintas?.[campo]?.[col] || '';
+  });
+
+  document.getElementById('modal-bitacora').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+  setTimeout(applyBitRestrictions, 50);
+}
+
+function onBitCodigoInput(val) {
+  const e = DB_ETIQUETAS[val.trim()] || {};
+  document.getElementById('bit-cliente').value  = e.cliente || '';
+  document.getElementById('bit-etiqueta').value = e.nombre  || '';
+}
+
+/* Restricciones por línea/área según Excel:
+   Sustrato 2/3 → solo Flexografía (FL1-FL4)
+   Engrane       → solo Flexografía
+   Juego cilindros → solo Rotograbado (RT5-RT7)
+   Suaje         → solo FL3
+   Potencia UV   → solo FL2 y FL3
+   Peso adhesivo → solo Flexografía
+   Proveedor (fís.) → solo Flexografía
+   Anilox/BCM    → solo Flexografía (tabla)
+   Sticky Back   → solo Flexografía (tabla)
+*/
+function applyBitRestrictions() {
+  const linea = (document.getElementById('bit-linea')?.value || '').toUpperCase();
+  const isFlex  = ['FL1','FL2','FL3','FL4'].includes(linea);
+  const isRoto  = ['RT5','RT6','RT7'].includes(linea);
+  const isFL2FL3 = ['FL2','FL3'].includes(linea);
+  const isFL3   = linea === 'FL3';
+  const noLine  = linea === '';
+
+  function lock(id, allowed) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const blocked = !allowed && !noLine;
+    el.disabled    = blocked;
+    el.style.background = blocked ? 'rgba(200,16,46,.04)' : '';
+    el.style.borderColor = blocked ? 'rgba(200,16,46,.2)' : 'rgba(0,32,96,.12)';
+    el.style.color  = blocked ? '#C8102E' : '#0D1A2E';
+    el.title = blocked ? 'No aplica para esta línea' : '';
+    if (blocked) el.value = '';
+  }
+
+  lock('bit-s2',            isFlex);
+  lock('bit-s3',            isFlex);
+  lock('bit-engrane',       isFlex);
+  lock('bit-cilindros',     isRoto);
+  lock('bit-suaje',         isFL3);
+  lock('bit-potencia-uv',   isFL2FL3);
+  lock('bit-peso-adhesivo', isFlex);
+  lock('bit-proveedor',     isFlex);
+
+  // Tabla de tintas: Anilox, BCM, Sticky Back → solo Flexografía
+  const flexOnlyRows = ['Anilox','BCM','Sticky Back'];
+  document.querySelectorAll('#bit-tintas-table tbody tr').forEach(tr => {
+    const campo = tr.querySelector('td')?.textContent?.trim() || '';
+    const blocked = flexOnlyRows.includes(campo) && !isFlex && !noLine;
+    tr.querySelectorAll('input').forEach(inp => {
+      inp.disabled = blocked;
+      inp.style.background  = blocked ? 'rgba(200,16,46,.05)' : 'transparent';
+      inp.style.color       = blocked ? '#C8102E' : '#0D1A2E';
+      inp.title = blocked ? 'No aplica para esta línea' : '';
+      if (blocked) inp.value = '';
+    });
+  });
+}
+
+function closeBitacoraModal() {
+  document.getElementById('modal-bitacora').style.display = 'none';
+  document.body.style.overflow = '';
+  bitacoraKeyActual = null;
+}
+
+function saveBitacora() {
+  const key = bitacoraKeyActual;
+  if (!key) return;
+
+  const isNew = !state.bitacoras?.[key];
+  const hoy   = new Date().toISOString().split('T')[0];
+
+  // ── Validar campos obligatorios (todos los habilitados excepto Observaciones) ──
+  const vacíos = [];
+
+  function checkField(id, label) {
+    const el = document.getElementById(id);
+    if (!el || el.disabled) return; // no aplica a esta línea
+    if (!el.value.trim()) vacíos.push(label);
+  }
+
+  // Datos generales
+  checkField('bit-linea',    'Línea');
+  checkField('bit-fecha',    'Fecha de actualización');
+  // Cliente y Etiqueta son auto-llenados, no se validan
+
+  // Características físicas
+  checkField('bit-acabado',       'Acabado');
+  checkField('bit-s1',            'Sustrato 1');
+  checkField('bit-s2',            'Sustrato 2');
+  checkField('bit-s3',            'Sustrato 3');
+  checkField('bit-medida',        'Medida');
+  checkField('bit-engrane',       'Engrane');
+  checkField('bit-cilindros',     'Juego de cilindros');
+  checkField('bit-suaje',         'Suaje');
+  checkField('bit-potencia-uv',   'Potencia UV');
+  checkField('bit-corona',        '% Tratamiento corona');
+  checkField('bit-peso-adhesivo', 'Peso adhesivo');
+  checkField('bit-proveedor',     'Proveedor');
+
+  // Parámetros de proceso
+  checkField('bit-velocidad',    'Velocidad promedio');
+  checkField('bit-tension-des',  'Tensión desbobinador');
+  checkField('bit-tension-reb',  'Tensión rebobinador');
+  checkField('bit-grabado',      'Grabado');
+
+  // Tabla de tintas: verificar que cada fila habilitada tenga al menos la col 1
+  document.querySelectorAll('#bit-tintas-table tbody tr').forEach(tr => {
+    const campo = tr.querySelector('td')?.textContent?.trim() || '';
+    const firstInput = tr.querySelector('input[data-col="1"]');
+    if (!firstInput || firstInput.disabled) return;
+    if (!firstInput.value.trim()) vacíos.push(`Tintas › ${campo} (col 1)`);
+  });
+
+  if (vacíos.length > 0) {
+    const lista = vacíos.slice(0, 8).join('\n• ');
+    const extra = vacíos.length > 8 ? `\n• ...y ${vacíos.length - 8} más` : '';
+    alert(`Faltan los siguientes campos obligatorios:\n\n• ${lista}${extra}`);
+    return;
+  }
+
+  // Recoger tabla de tintas
+  const tintas = {};
+  document.querySelectorAll('#bit-tintas-table input[data-campo]').forEach(inp => {
+    const campo = inp.dataset.campo;
+    const col   = inp.dataset.col;
+    const val   = inp.value.trim();
+    if (val) {
+      if (!tintas[campo]) tintas[campo] = {};
+      tintas[campo][col] = val;
+    }
+  });
+
+  const data = {
+    codigo:       key,
+    linea:        document.getElementById('bit-linea').value,
+    fecha:        isNew ? document.getElementById('bit-fecha').value : hoy,
+    cliente:      document.getElementById('bit-cliente').value,
+    etiqueta:     document.getElementById('bit-etiqueta').value,
+    acabado:      document.getElementById('bit-acabado').value.trim(),
+    s1:           document.getElementById('bit-s1').value.trim(),
+    s2:           document.getElementById('bit-s2').value.trim(),
+    s3:           document.getElementById('bit-s3').value.trim(),
+    medida:       document.getElementById('bit-medida').value.trim(),
+    engrane:      document.getElementById('bit-engrane').value.trim(),
+    cilindros:    document.getElementById('bit-cilindros').value.trim(),
+    suaje:        document.getElementById('bit-suaje').value.trim(),
+    'potencia-uv':document.getElementById('bit-potencia-uv').value.trim(),
+    corona:       document.getElementById('bit-corona').value.trim(),
+    'peso-adhesivo': document.getElementById('bit-peso-adhesivo').value.trim(),
+    proveedor:    document.getElementById('bit-proveedor').value.trim(),
+    velocidad:    document.getElementById('bit-velocidad').value.trim(),
+    'tension-des':document.getElementById('bit-tension-des').value.trim(),
+    'tension-reb':document.getElementById('bit-tension-reb').value.trim(),
+    grabado:      document.getElementById('bit-grabado').value.trim(),
+    observaciones:document.getElementById('bit-observaciones').value.trim(),
+    tintas,
+    updatedAt:    Date.now(),
+  };
+
+  if (!state.bitacoras) state.bitacoras = {};
+  state.bitacoras[key] = data;
+
+  // Persistir en Firebase
+  if (db) {
+    db.ref('imd_bitacoras/' + key).set(data)
+      .catch(e => console.warn('Firebase bitácora save error', e));
+  }
+
+  closeBitacoraModal();
+  renderEtiqList();
+  toast('✅ Bitácora guardada');
 }
 
 function toggleMetodo(id) {
