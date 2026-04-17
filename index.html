@@ -905,6 +905,15 @@ input::placeholder,textarea::placeholder { color:var(--txt-mute); }
         <div style="font-size:20px;color:#DDE4F0;line-height:1;">›</div>
       </div>
 
+      <div id="home-card-bitacoras" onclick="goTo('view-bitacoras')" style="display:none;align-items:center;padding:14px 0;border-bottom:1px solid #EEF2F8;gap:14px;cursor:pointer;">
+        <div style="width:3px;height:34px;border-radius:2px;background:#003580;flex-shrink:0;"></div>
+        <div style="flex:1;">
+          <div style="font-size:13px;font-weight:600;color:var(--txt);">Catálogo de bitácoras</div>
+          <div style="font-size:10px;color:var(--txt-mute);margin-top:2px;">Consultar bitácoras cargadas</div>
+        </div>
+        <div style="font-size:20px;color:#DDE4F0;line-height:1;">›</div>
+      </div>
+
       <div style="display:flex;align-items:center;padding:14px 0;gap:14px;">
         <div style="width:3px;height:34px;border-radius:2px;background:#003580;opacity:.15;flex-shrink:0;"></div>
         <div style="flex:1;">
@@ -2062,6 +2071,41 @@ input::placeholder,textarea::placeholder { color:var(--txt-mute); }
   </div>
 </div>
 
+<!-- ══ CATÁLOGO DE BITÁCORAS ════════════════════════════════ -->
+<div id="view-bitacoras" class="view">
+  <div class="topbar">
+    <div class="btn-back" onclick="goTo('view-home')"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 3L5 8L10 13" stroke="#003580" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    <div class="topbar-info">
+      <div class="topbar-title">Catálogo de bitácoras</div>
+      <div class="topbar-sub" id="bit-cat-sub">Cargando…</div>
+    </div>
+  </div>
+  <div style="padding:10px 14px;background:rgba(255,255,255,.9);border-bottom:0.5px solid rgba(0,32,96,.08);">
+    <input type="text" id="bit-cat-search" placeholder="Buscar por # o nombre de etiqueta..."
+      oninput="renderBitacoraCatalog()"
+      style="width:100%;box-sizing:border-box;padding:9px 12px;border:1.5px solid rgba(0,32,96,.12);border-radius:8px;font-size:13px;color:#0D1A2E;font-family:inherit;outline:none;"
+      onfocus="this.style.borderColor='#003580'" onblur="this.style.borderColor='rgba(0,32,96,.12)'">
+  </div>
+  <div style="flex:1;overflow-y:auto;padding:12px 14px 24px;" id="bit-cat-list"></div>
+</div>
+
+<!-- ══ MODAL ETIQUETAS PENDIENTES (Admin) ════════════════════ -->
+<div id="modal-etiq-pendientes" style="display:none;position:fixed;inset:0;z-index:5300;background:rgba(10,18,40,.6);backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:20px;">
+  <div style="background:#fff;border-radius:16px;width:100%;max-width:420px;box-shadow:0 8px 48px rgba(0,32,96,.22);animation:fadeIn .2s ease;overflow:hidden;">
+    <div style="background:#D4840A;padding:18px 20px;display:flex;align-items:center;gap:12px;">
+      <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="10" stroke="#fff" stroke-width="1.8"/><path d="M11 7v5M11 14.5v.5" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>
+      <div>
+        <div style="font-size:14px;font-weight:700;color:#fff;">Etiquetas pendientes de alta</div>
+        <div style="font-size:11px;color:rgba(255,255,255,.85);margin-top:1px;">Se usaron en inspecciones sin estar registradas</div>
+      </div>
+    </div>
+    <div style="padding:16px 20px;" id="etiq-pend-list"></div>
+    <div style="padding:0 20px 18px;display:flex;flex-direction:column;gap:8px;">
+      <button onclick="closeEtiqPendientes()" style="width:100%;padding:11px;border:1.5px solid rgba(0,32,96,.18);border-radius:8px;background:transparent;font-size:13px;font-weight:600;color:#5A6A80;cursor:pointer;">Cerrar — revisar después</button>
+    </div>
+  </div>
+</div>
+
 <div id="view-historial" class="view">
   <div class="topbar">
     <div class="btn-back" onclick="goTo('view-home')"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M10 3L5 8L10 13" stroke="#003580" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
@@ -2119,6 +2163,7 @@ window.addEventListener('load', function() {
       state.uid = s.rol + '-session';
       initHome();
       goTo('view-home');
+      if (s.rol === 'calidad') setTimeout(checkEtiqPendientes, 1200);
     }
   } catch(e) {}
   // Check biometric availability on login screen
@@ -2168,6 +2213,7 @@ window.addEventListener('load', function() {
     if (!state.bitacoras) state.bitacoras = {};
     snap.forEach(c => { state.bitacoras[c.key] = c.val(); });
     if (document.getElementById('etiq-list') && document.getElementById('vtab-etiq')?.style.display !== 'none') renderEtiqList();
+    if (document.getElementById('bit-cat-list') && document.getElementById('view-bitacoras')?.classList.contains('active')) renderBitacoraCatalog();
   });
 });
 
@@ -2471,6 +2517,7 @@ function goTo(viewId) {
   if (viewId === 'view-dashboard') loadDashboard();
   if (viewId === 'view-exportar') initExportar();
   if (viewId === 'view-variables') initVariables();
+  if (viewId === 'view-bitacoras') initBitacoraCatalog();
   if (viewId === 'view-home') loadStats();
   // view-nueva handled via openModalArea(), no direct reset needed
 }
@@ -2503,6 +2550,10 @@ function doLogin() {
   sessionStorage.setItem('imprx_session', JSON.stringify({ rol }));
   initHome();
   goTo('view-home');
+  // Check for pending new etiquetas (admin only)
+  if (rol === 'calidad') {
+    setTimeout(checkEtiqPendientes, 800);
+  }
   // Offer biometric after login
   setTimeout(() => {
     if (!window.PublicKeyCredential) return;
@@ -2546,6 +2597,8 @@ function initHome() {
   if (cardDashboard) cardDashboard.style.display = isCalidad ? 'none' : 'flex';
   const cardVariables = document.getElementById('home-card-variables');
   if (cardVariables) cardVariables.style.display = state.rol === 'calidad' ? 'flex' : 'none';
+  const cardBitacoras = document.getElementById('home-card-bitacoras');
+  if (cardBitacoras) cardBitacoras.style.display = (state.rol === 'calidad' || state.rol === 'calidad2') ? 'flex' : 'none';
 
   loadStats();
 }
@@ -3353,6 +3406,208 @@ function deleteVar(idx) {
   toast('Variable eliminada');
 }
 
+/* ══════════════════════════════════════════════════════════
+   CATÁLOGO DE BITÁCORAS
+══════════════════════════════════════════════════════════ */
+function initBitacoraCatalog() {
+  const search = document.getElementById('bit-cat-search');
+  if (search) search.value = '';
+  renderBitacoraCatalog();
+}
+
+function renderBitacoraCatalog() {
+  const query  = (document.getElementById('bit-cat-search')?.value || '').trim().toUpperCase();
+  const bitas  = state.bitacoras || {};
+  const allKeys = Object.keys(bitas);
+
+  const filtered = query
+    ? allKeys.filter(k => {
+        const b = bitas[k];
+        return k.includes(query) ||
+          (b.etiqueta||'').toUpperCase().includes(query) ||
+          (b.cliente||'').toUpperCase().includes(query) ||
+          (b.linea||'').toUpperCase().includes(query);
+      })
+    : allKeys;
+
+  filtered.sort((a, b) => +a - +b);
+
+  const sub = document.getElementById('bit-cat-sub');
+  if (sub) sub.textContent = filtered.length + ' de ' + allKeys.length + ' bitácoras';
+
+  const body = document.getElementById('bit-cat-list');
+  if (!body) return;
+
+  if (allKeys.length === 0) {
+    body.innerHTML = '<div style="text-align:center;padding:48px 20px;color:#8A9AB0;font-size:13px;">📋 No hay bitácoras cargadas aún.</div>';
+    return;
+  }
+  if (filtered.length === 0) {
+    body.innerHTML = '<div style="text-align:center;padding:48px 20px;color:#8A9AB0;font-size:13px;">Sin resultados para esa búsqueda.</div>';
+    return;
+  }
+
+  const isAdmin = state.rol === 'calidad';
+
+  body.innerHTML = filtered.map(k => {
+    const b = bitas[k];
+    const tipoMap = { 'Envolvente':'E', 'Manga':'M', 'Autoadherible':'A' };
+    const etiq = DB_ETIQUETAS[k] || {};
+    const tipoBadge = etiq.tipo
+      ? `<span style="font-size:9px;font-weight:700;background:rgba(0,53,128,.09);color:#003580;border-radius:4px;padding:2px 5px;margin-left:5px;">${tipoMap[etiq.tipo]||etiq.tipo}</span>` : '';
+    const linea = b.linea ? `<span style="font-size:10px;background:rgba(0,53,128,.07);color:#003580;border-radius:4px;padding:2px 6px;margin-left:5px;">${b.linea}</span>` : '';
+    return `<div class="var-row" style="margin-bottom:8px;">
+      <div class="var-row-info">
+        <div class="var-row-name" style="font-size:12px;"># ${k}${tipoBadge}${linea}</div>
+        <div style="font-size:13px;font-weight:600;color:#0D1A2E;margin:2px 0;">${b.etiqueta || etiq.nombre || '—'}</div>
+        <div class="var-row-meta" style="font-size:11px;">${b.cliente || etiq.cliente || ''}</div>
+        ${b.fecha ? `<div style="font-size:10px;color:#8A9AB0;margin-top:2px;">Actualizado: ${b.fecha}</div>` : ''}
+      </div>
+      <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;">
+        <button onclick="openBitacoraCatalogView('${k}')"
+          style="padding:7px 12px;background:#003580;color:#fff;border:none;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">
+          📋 Ver
+        </button>
+        ${isAdmin ? `<button onclick="openBitacoraModal('${k}')"
+          style="padding:7px 10px;background:rgba(0,53,128,.08);color:#003580;border:1px solid rgba(0,53,128,.25);border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;">
+          ✏️
+        </button>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openBitacoraCatalogView(key) {
+  // Reuse the existing view modal but with catalog key
+  const numEtiqOrig = state.inspeccion?.numEtiq;
+  state.inspeccion = state.inspeccion || {};
+  state.inspeccion.numEtiq    = key;
+  state.inspeccion.nombreEtiq = (DB_ETIQUETAS[key]?.nombre || state.bitacoras?.[key]?.etiqueta || '');
+  openBitacoraInspeccion();
+  // Restore after
+  state.inspeccion.numEtiq    = numEtiqOrig;
+}
+
+/* ══════════════════════════════════════════════════════════
+   TOAST — notificación temporal en pantalla
+══════════════════════════════════════════════════════════ */
+function toast(msg, type) {
+  const existing = document.getElementById('imprx-toast');
+  if (existing) existing.remove();
+  const el = document.createElement('div');
+  el.id = 'imprx-toast';
+  el.textContent = msg;
+  el.style.cssText = `
+    position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
+    background:${type === 'error' ? '#C8102E' : '#003580'};
+    color:#fff; padding:11px 18px; border-radius:10px;
+    font-size:13px; font-weight:600; letter-spacing:.02em;
+    z-index:9999; box-shadow:0 6px 24px rgba(0,32,96,.25);
+    animation:fadeIn .2s ease; max-width:85vw;
+    font-family:inherit;
+  `;
+  document.body.appendChild(el);
+  setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity .3s'; }, 2200);
+  setTimeout(() => el.remove(), 2600);
+}
+
+/* ══════════════════════════════════════════════════════════
+   ETIQUETAS PENDIENTES DE ALTA (Admin)
+══════════════════════════════════════════════════════════ */
+async function checkEtiqPendientes() {
+  if (!db) { console.log('[checkEtiqPendientes] no db'); return; }
+  try {
+    const snap = await db.ref('imd_etiq_pendientes').once('value');
+    console.log('[checkEtiqPendientes] snap exists:', snap.exists());
+    if (!snap.exists()) return;
+    const pendientes = [];
+    snap.forEach(c => { pendientes.push({ key: c.key, ...c.val() }); });
+    console.log('[checkEtiqPendientes] found', pendientes.length, 'pendientes');
+    if (pendientes.length === 0) return;
+    pendientes.sort((a,b) => (b.timestamp||0) - (a.timestamp||0));
+    showEtiqPendientesModal(pendientes);
+  } catch(e) { console.warn('checkEtiqPendientes error', e); }
+}
+
+function showEtiqPendientesModal(pendientes) {
+  const list = document.getElementById('etiq-pend-list');
+  list.innerHTML = pendientes.map(p => {
+    const etiqExiste = !!DB_ETIQUETAS[p.numEtiq];
+    const btnLabel   = etiqExiste ? 'Agregar bitácora >' : 'Dar de alta >';
+    const statusTxt  = etiqExiste
+      ? '<span style="font-size:10px;color:#0F7A55;font-weight:600;">✓ Etiqueta registrada — falta bitácora</span>'
+      : '<span style="font-size:10px;color:#D4840A;font-weight:600;">⚠ Sin registrar</span>';
+    return `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:0.5px solid rgba(0,32,96,.08);">
+      <div style="width:8px;height:8px;border-radius:50%;background:${etiqExiste?'#0F7A55':'#D4840A'};flex-shrink:0;"></div>
+      <div style="flex:1;">
+        <div style="font-size:13px;font-weight:700;color:#0D1A2E;"># ${p.numEtiq}</div>
+        <div style="font-size:11px;color:#5A6A80;margin-top:1px;">${p.fecha || ''} · ${p.inspector || ''}</div>
+        <div style="margin-top:2px;">${statusTxt}</div>
+      </div>
+      <button onclick="irAltaEtiq('${p.numEtiq}')"
+        style="flex-shrink:0;padding:7px 12px;background:#003580;color:#fff;border:none;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">
+        ${btnLabel}
+      </button>
+    </div>`;
+  }).join('') +
+    `<div style="font-size:11px;color:#8A9AB0;margin-top:10px;line-height:1.5;">
+      El alta está completa cuando tanto la etiqueta como su bitácora estén guardadas.
+    </div>`;
+  document.getElementById('modal-etiq-pendientes').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+
+function closeEtiqPendientes() {
+  document.getElementById('modal-etiq-pendientes').style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+async function irAltaEtiq(numEtiq) {
+  closeEtiqPendientes();
+  _pendingEtiqKey = numEtiq;
+
+  if (DB_ETIQUETAS[numEtiq]) {
+    // Etiqueta ya existe → ir directo a bitácora
+    openBitacoraModal(numEtiq);
+  } else {
+    // Etiqueta no existe → abrir modal Nueva Etiqueta con # pre-llenado
+    // Pequeño delay para que closeEtiqPendientes libere el overflow antes de que
+    // openEtiqModal lo vuelva a bloquear
+    setTimeout(() => {
+      openEtiqModal(null);
+      const numEl = document.getElementById('ef-num');
+      if (numEl) { numEl.value = numEtiq; numEl.readOnly = false; }
+    }, 150);
+  }
+}
+
+function closeEtiqModal_andClearPending(numEtiq) {
+  // Called after saving — remove from Firebase pending
+  if (db && numEtiq) {
+    db.ref('imd_etiq_pendientes/' + numEtiq).remove().catch(()=>{});
+  }
+}
+
+function bajaEtiqueta(key) {
+  const e = DB_ETIQUETAS[key];
+  const nombre = e?.nombre || key;
+  if (!confirm(`¿Dar de baja la etiqueta # ${key} "${nombre}"?\n\nEsta acción la eliminará del catálogo activo y borrará todos sus registros.`)) return;
+  delete DB_ETIQUETAS[key];
+  if (db) {
+    // Marcar como eliminada en override
+    db.ref('imd_etiquetas_override/' + key).set({ _deleted: true })
+      .catch(e => console.warn('baja etiqueta error', e));
+    // Borrar de pendientes de alta
+    db.ref('imd_etiq_pendientes/' + key).remove().catch(()=>{});
+    // Borrar bitácora asociada
+    db.ref('imd_bitacoras/' + key).remove().catch(()=>{});
+    // Limpiar de state local también
+    if (state.bitacoras?.[key]) delete state.bitacoras[key];
+  }
+  renderEtiqList();
+  toast('Etiqueta # ' + key + ' dada de baja');
+}
+
 function persistVarArea(area) {
   if (!db) return;
   const arr = getVarArray();
@@ -3412,6 +3667,7 @@ function renderEtiqList() {
     const e = DB_ETIQUETAS[k];
     const tipoBadge = e.tipo ? `<span style="font-size:9px;font-weight:700;background:rgba(0,53,128,.09);color:#003580;border-radius:4px;padding:2px 5px;margin-left:5px;">${tipoMap[e.tipo]||e.tipo}</span>` : '';
     const hasBit = !!state.bitacoras?.[k];
+    const isAdmin = state.rol === 'calidad';
     return `<div class="var-row" style="margin-bottom:7px;flex-wrap:wrap;gap:8px;">
       <div class="var-row-info">
         <div class="var-row-name" style="font-size:12px;"># ${k}${tipoBadge}</div>
@@ -3423,6 +3679,7 @@ function renderEtiqList() {
           ${hasBit ? '📋 Ver bitácora' : '+ Agregar bitácora'}
         </button>
         <button class="var-action-btn edit" onclick="openEtiqModal('${k}')" title="Editar">✏️</button>
+        ${isAdmin ? `<button class="var-action-btn del" onclick="bajaEtiqueta('${k}')" title="Dar de baja">🗑</button>` : ''}
       </div>
     </div>`;
   }).join('');
@@ -3467,6 +3724,8 @@ function saveEtiq() {
   const nombre = document.getElementById('ef-nombre').value.trim();
   if (!num || !nombre) { alert('# Etiqueta y Nombre son obligatorios.'); return; }
 
+  const wasNew = (etiqEditKey === null || etiqEditKey === undefined || etiqEditKey === '');
+
   DB_ETIQUETAS[num] = {
     nombre,
     cliente:    document.getElementById('ef-cliente').value.trim(),
@@ -3480,19 +3739,37 @@ function saveEtiq() {
     s2:         document.getElementById('ef-s2').value.trim(),
     s3:         document.getElementById('ef-s3').value.trim(),
   };
+
+  // Guardar en Firebase
   if (db) {
     db.ref('imd_etiquetas_override/' + num).set(DB_ETIQUETAS[num])
       .catch(e => console.warn('Firebase etiqueta save error', e));
+    // NO borrar pendiente aquí — solo se borra cuando también se guarda la bitácora
   }
-  closeEtiqModal();
-  renderEtiqList();
-  toast(etiqEditKey ? 'Etiqueta actualizada' : 'Etiqueta creada');
+
+  // Cerrar modal de etiqueta
+  document.getElementById('modal-etiq-edit').style.display = 'none';
+  document.body.style.overflow = '';
+  etiqEditKey = null;
+
+  toast(wasNew ? 'Etiqueta creada' : 'Etiqueta actualizada');
+
+  if (wasNew) {
+    // Esperar a que Firebase propague antes de recargar pendientes
+    setTimeout(() => {
+      console.log('[saveEtiq] wasNew=true, calling checkEtiqPendientes after 400ms');
+      checkEtiqPendientes();
+    }, 400);
+  } else {
+    renderEtiqList();
+  }
 }
 
 /* ══════════════════════════════════════════════════════════
    BITÁCORA DE ETIQUETAS
 ══════════════════════════════════════════════════════════ */
 let bitacoraKeyActual = null;
+let _pendingEtiqKey   = null; // tracks etiqueta from pending alert flow
 
 function openBitacoraInspeccion() {
   const numEtiq = state.inspeccion?.numEtiq || '';
@@ -3896,6 +4173,13 @@ function saveBitacora() {
   closeBitacoraModal();
   renderEtiqList();
   toast('✅ Bitácora guardada');
+
+  // Siempre intentar borrar del pendiente al guardar bitácora
+  // (tanto si viene del flujo de alerta como de + Agregar bitácora directamente)
+  if (db) db.ref('imd_etiq_pendientes/' + key).remove().catch(()=>{});
+  if (_pendingEtiqKey && _pendingEtiqKey === key) {
+    _pendingEtiqKey = null;
+  }
 }
 
 function toggleMetodo(id) {
@@ -4108,6 +4392,18 @@ async function submitInspeccion() {
     fecha:      new Date().toLocaleDateString('es-MX'),
     pendiente:  isArranqueCalidad && nos > 0,  // arranque calidad con NC queda pendiente
   };
+
+  // Si la etiqueta no existe en DB, registrarla como pendiente de alta
+  const numEtiq = state.inspeccion.numEtiq || '';
+  if (numEtiq && !DB_ETIQUETAS[numEtiq] && db) {
+    db.ref('imd_etiq_pendientes/' + numEtiq).set({
+      numEtiq,
+      nombreEtiq: state.inspeccion.nombreEtiq || 'Etiqueta nueva',
+      inspector:  state.inspeccion.audNombre || state.inspeccion.inspector || '—',
+      fecha:      new Date().toLocaleDateString('es-MX'),
+      timestamp:  Date.now(),
+    }).catch(e => console.warn('etiq pendiente save error', e));
+  }
 
   let inspeccionId;
   if (state.inspeccionPendienteKey) {
@@ -4653,6 +4949,8 @@ async function loadHistorial() {
         inspector:   v.inspector   || v.nombre || '—',
         inspeccionado: v.inspeccionado || '—',
         op:          v.op          || '',
+        numEtiq:     v.numEtiq     || '',
+        nombreEtiq:  v.nombreEtiq  || '',
         timestamp:   v.timestamp   || 0,
         respuestas:  v.respuestas  || {},
       });
@@ -4693,6 +4991,8 @@ async function loadHistorial() {
       '</div>' +
       '<div class="ac-meta"><span>👤 ' + ins.inspector + '</span>' +
         (ins.inspeccionado && ins.inspeccionado !== '—' ? ' <span>🔵 ' + ins.inspeccionado + '</span>' : '') +
+        (ins.numEtiq ? ' <span>🏷️ #' + ins.numEtiq + '</span>' : '') +
+        (ins.numEtiq ? ' <span style="color:#003580;">' + (ins.nombreEtiq || (DB_ETIQUETAS?.[ins.numEtiq]?.nombre) || '') + '</span>' : '') +
         ' ' + noConfHTML + '</div>';
     body.appendChild(card);
   });
@@ -5698,6 +5998,14 @@ function openDetalleInsp(ins) {
         ${ins.op ? `<div>
           <div style="font-size:9px;font-weight:700;color:#8A9AB0;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Orden de producción</div>
           <div style="font-size:12px;font-weight:600;color:#003580;">📋 ${ins.op}</div>
+        </div>` : ''}
+        ${ins.numEtiq ? `<div>
+          <div style="font-size:9px;font-weight:700;color:#8A9AB0;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;"># Etiqueta</div>
+          <div style="font-size:12px;font-weight:600;color:#003580;">🏷️ ${ins.numEtiq}</div>
+        </div>` : ''}
+        ${(ins.nombreEtiq || (ins.numEtiq && DB_ETIQUETAS?.[ins.numEtiq]?.nombre)) ? `<div style="flex:1;min-width:180px;">
+          <div style="font-size:9px;font-weight:700;color:#8A9AB0;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Nombre de etiqueta</div>
+          <div style="font-size:12px;font-weight:600;color:#003580;">📄 ${ins.nombreEtiq || DB_ETIQUETAS[ins.numEtiq].nombre}</div>
         </div>` : ''}
         <div>
           <div style="font-size:9px;font-weight:700;color:#8A9AB0;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">Hora de registro</div>
