@@ -1,0 +1,788 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>IMPREDIMEX — Control de Procesos</title>
+
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#003580">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Calidad">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
+
+<!-- ╔════════════════════════════════════════════════════════════════════╗
+     ║  CONFIGURACIÓN — dos proyectos de Firebase a la vez                 ║
+     ║  El comportamiento esperado está en SPECS.md. Antes de tocar el     ║
+     ║  login, los permisos o el personal, lee contexto-suite.md: eso      ║
+     ║  afecta a las cinco apps, no solo a esta.                           ║
+     ╚════════════════════════════════════════════════════════════════════╝ -->
+<script>
+  // ── Proyecto propio de Calidad: inspecciones, hallazgos y catálogos ──
+  const FIREBASE_CONFIG = {
+    apiKey:            "AIzaSyC6w8iVL0C7P15rVlDRPkpwxpn2zScPPpc",
+    databaseURL:       "https://impredimex-procesos-default-rtdb.firebaseio.com",
+    projectId:         "impredimex-procesos",
+    storageBucket:     "impredimex-procesos.firebasestorage.app",
+    messagingSenderId: "693445020756",
+    appId:             "1:693445020756:web:893b5efdd893a4c1cf31c1"
+  };
+
+  // ── Proyecto compartido de la suite: login y lista de personal ───────
+  const SUITE_CONFIG = {
+    apiKey:            "AIzaSyBAfEAWPYCdt_7kN1uHqTmPiRHIn6BgOyo",
+    authDomain:        "impredimex-suite.firebaseapp.com",
+    projectId:         "impredimex-suite",
+    storageBucket:     "impredimex-suite.firebasestorage.app",
+    messagingSenderId: "272151508788",
+    appId:             "1:272151508788:web:df68c90faa8cc1996cd761"
+  };
+
+  const APP_ID  = 'calidad';
+  const DOMINIO = '@impredimex.local';
+
+  // ⚠️ PENDIENTE — Clave de sitio de reCAPTCHA Enterprise para App Check.
+  const APPCHECK_SITE_KEY = '';
+</script>
+
+<style>
+:root{
+  --navy:#003580; --navy-dark:#002060; --navy-mid:#1A4D9A; --navy-light:#E8EEF8;
+  --text:#1a2332; --text2:#5A6A80; --text3:#8A9AB0;
+  --line:#DDE3EC; --surface:#fff; --bg:#F4F7FC;
+  --red:#C8102E; --red-bg:rgba(200,16,46,.08);
+  --green:#0F7A55; --green-bg:rgba(15,122,85,.08);
+  --amber:#B45309; --amber-bg:rgba(180,83,9,.08);
+  --radius:12px; --shadow:0 2px 10px rgba(0,32,96,.07);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--text);
+     font:15px/1.55 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
+button,input,select,textarea{font-family:inherit;font-size:inherit}
+.hide{display:none !important}
+
+/* ── Encabezado ── */
+header{background:rgba(255,255,255,.92);backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--line);position:sticky;top:0;z-index:50}
+.hwrap{max-width:900px;margin:0 auto;padding:10px 16px;display:flex;
+  align-items:center;justify-content:space-between;gap:12px}
+.logo{background:var(--navy);color:#fff;width:38px;height:38px;border-radius:9px;
+  display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px}
+.htitle{font-size:15px;font-weight:700;color:var(--navy-dark);line-height:1.2}
+.hsub{font-size:11px;color:var(--navy);font-weight:600}
+.badge{font-size:11px;color:var(--text3);text-align:right;line-height:1.35}
+.badge b{display:block;font-size:12px;color:var(--navy-dark)}
+
+/* ── Navegación ── */
+nav{max-width:900px;margin:12px auto 0;padding:0 16px;display:flex;gap:6px;overflow-x:auto}
+nav button{flex:1;min-width:86px;padding:10px 8px;border:none;background:transparent;
+  border-bottom:2px solid transparent;color:var(--text3);font-size:12.5px;font-weight:600;
+  cursor:pointer;white-space:nowrap}
+nav button.on{color:var(--navy-dark);border-bottom-color:var(--navy);font-weight:700}
+
+main{max-width:900px;margin:0 auto;padding:16px;padding-bottom:60px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+  padding:16px;margin-bottom:14px;box-shadow:var(--shadow)}
+.card-t{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--navy);margin-bottom:10px;display:flex;align-items:center;gap:7px}
+.card-t::before{content:'';width:3px;height:13px;background:var(--navy);border-radius:2px}
+
+label{display:block;font-size:11.5px;font-weight:600;color:var(--text2);margin:10px 0 4px}
+input,select,textarea{width:100%;padding:10px 12px;border:1px solid var(--line);
+  border-radius:9px;outline:none;background:#fff}
+input:focus,select:focus,textarea:focus{border-color:var(--navy-mid)}
+.row{display:flex;gap:10px}.row>*{flex:1}
+
+.btn{display:block;width:100%;padding:13px;border:none;border-radius:10px;
+  background:var(--navy);color:#fff;font-weight:700;cursor:pointer;margin-top:12px}
+.btn:disabled{background:var(--text3);cursor:default}
+.btn-2{background:#fff;color:var(--navy);border:1px solid var(--line)}
+.btn-red{background:var(--red)}
+.btn-sm{width:auto;padding:7px 13px;font-size:12.5px;margin:0}
+
+.pill{display:inline-block;padding:2px 8px;border-radius:5px;font-size:10.5px;font-weight:700}
+.p-red{background:var(--red-bg);color:var(--red)}
+.p-green{background:var(--green-bg);color:var(--green)}
+.p-amber{background:var(--amber-bg);color:var(--amber)}
+.p-navy{background:var(--navy-light);color:var(--navy)}
+
+/* ── Foco ── */
+.foco-item{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)}
+.foco-item:last-child{border-bottom:none}
+.foco-bar{flex:1;height:7px;background:var(--navy-light);border-radius:4px;overflow:hidden}
+.foco-bar i{display:block;height:100%;background:var(--navy);border-radius:4px}
+.foco-nom{min-width:150px;font-size:13px;font-weight:600}
+.foco-pct{min-width:44px;text-align:right;font-size:12.5px;font-weight:700;color:var(--navy)}
+.tend{min-width:58px;font-size:11px;font-weight:700;text-align:right}
+.t-up{color:var(--red)}.t-down{color:var(--green)}.t-eq{color:var(--text3)}
+
+.aviso{font-size:12px;line-height:1.5;background:var(--navy-light);color:var(--navy-dark);
+  border-radius:9px;padding:10px 12px;margin-bottom:12px}
+.aviso-amber{background:var(--amber-bg);color:var(--amber)}
+.vacio{text-align:center;color:var(--text3);font-size:13px;padding:26px 10px}
+
+.item{border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px}
+.item h4{margin:0 0 3px;font-size:14px}
+.item .meta{font-size:11.5px;color:var(--text2)}
+
+/* ── Modal ── */
+.modal{position:fixed;inset:0;background:rgba(0,32,96,.45);display:flex;align-items:center;
+  justify-content:center;padding:16px;z-index:100}
+.modal-box{background:#fff;border-radius:14px;padding:18px;width:100%;max-width:460px;
+  max-height:88vh;overflow-y:auto}
+.modal-t{font-size:16px;font-weight:700;color:var(--navy-dark);margin-bottom:4px}
+
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:22px;background:var(--navy-dark);
+  color:#fff;padding:11px 18px;border-radius:9px;font-size:13px;z-index:200;max-width:88%}
+</style>
+</head>
+<body>
+
+<!-- ══════════════ ACCESO ══════════════ -->
+<div id="login" style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px">
+  <div class="card" style="max-width:340px;width:100%;margin:0">
+    <div style="text-align:center;margin-bottom:18px">
+      <div class="logo" style="margin:0 auto 10px;width:50px;height:50px;font-size:19px">IM</div>
+      <div style="font-size:17px;font-weight:700;color:var(--navy-dark)">IMPREDIMEX</div>
+      <div style="font-size:12px;font-weight:600;color:var(--navy)">Control de Procesos</div>
+    </div>
+    <label>Número de nómina</label>
+    <input id="in-nom" inputmode="numeric" autocomplete="username">
+    <label>Clave</label>
+    <input id="in-pwd" type="password" autocomplete="current-password">
+    <div id="login-err" style="color:var(--red);font-size:12.5px;margin-top:9px"></div>
+    <button class="btn" id="btn-entrar">Entrar</button>
+    <div style="font-size:11px;color:var(--text3);text-align:center;margin-top:14px">
+      Si olvidaste tu clave, pídele a un administrador que la restablezca.
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ APLICACIÓN ══════════════ -->
+<div id="app" class="hide">
+<header>
+  <div class="hwrap">
+    <div style="display:flex;align-items:center;gap:11px">
+      <div class="logo">IM</div>
+      <div>
+        <div class="htitle">IMPREDIMEX</div>
+        <div class="hsub">Control de Procesos</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <div class="badge"><b id="b-nom">—</b><span id="b-rol">—</span></div>
+      <button class="btn btn-2 btn-sm" onclick="salir()">Salir</button>
+    </div>
+  </div>
+</header>
+
+<nav id="nav"></nav>
+<main>
+  <!-- Nueva inspección -->
+  <section id="pg-inspeccion">
+    <div class="card">
+      <div class="card-t">Datos de la inspección</div>
+      <div class="row">
+        <div><label>Etapa</label>
+          <select id="f-etapa">
+            <option value="arranque">Arranque</option>
+            <option value="proceso" selected>En proceso</option>
+          </select></div>
+        <div><label>Turno</label>
+          <select id="f-turno">
+            <option>Matutino</option><option>Vespertino</option><option>Nocturno</option>
+          </select></div>
+      </div>
+      <div class="row">
+        <div><label>Máquina</label><select id="f-maquina" onchange="pintarFoco()"></select></div>
+        <div><label>Etiqueta</label><input id="f-etiqueta" inputmode="numeric" placeholder="Núm. de etiqueta"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-t">Qué vigilar en esta máquina</div>
+      <div id="foco"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-t">Inspección de producto</div>
+      <div style="font-size:12.5px;color:var(--text2);margin-bottom:12px">
+        Semiterminado o terminado. El resultado es binario.
+      </div>
+      <div class="row">
+        <button class="btn" style="background:var(--green);margin:0" onclick="resolver(true)">Pasa</button>
+        <button class="btn btn-red" style="margin:0" onclick="resolver(false)">No pasa</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Acciones correctivas -->
+  <section id="pg-acciones" class="hide">
+    <div class="card">
+      <div class="card-t">Acciones correctivas</div>
+      <div class="row" style="margin-bottom:12px">
+        <select id="f-estado" onchange="pintarAcciones()">
+          <option value="abierta">Abiertas</option>
+          <option value="cerrada">Cerradas</option>
+          <option value="">Todas</option>
+        </select>
+      </div>
+      <div id="lista-acciones"></div>
+    </div>
+  </section>
+
+  <!-- Historial -->
+  <section id="pg-historial" class="hide">
+    <div class="card">
+      <div class="card-t">Inspecciones registradas</div>
+      <div id="lista-historial"></div>
+    </div>
+  </section>
+
+  <!-- Comportamiento -->
+  <section id="pg-tendencia" class="hide">
+    <div class="card">
+      <div class="card-t">Comportamiento del defecto en el tiempo</div>
+      <div class="row">
+        <div><label>Máquina</label><select id="t-maquina" onchange="pintarTendencia()"></select></div>
+        <div><label>Defecto</label><select id="t-defecto" onchange="pintarTendencia()"></select></div>
+      </div>
+      <div id="tendencia" style="margin-top:14px"></div>
+    </div>
+  </section>
+
+  <!-- Matriz (admin) -->
+  <section id="pg-matriz" class="hide">
+    <div class="card">
+      <div class="card-t">Matriz defecto → variables de proceso</div>
+      <div class="aviso">
+        Lo que aquí se capture es lo que la aplicación le propone vigilar al inspector.
+        El contenido lo define la junta de calidad, producción e ingeniería de procesos.
+        Con siete defectos se cubre el 80% de la merma.
+      </div>
+      <label>Defecto</label>
+      <select id="m-defecto" onchange="cargarMatriz()"></select>
+      <label>Máquina (opcional — vacío aplica a todas)</label>
+      <select id="m-maquina" onchange="cargarMatriz()"></select>
+      <label>Variables que lo provocan, una por línea, con su peso estimado</label>
+      <textarea id="m-vars" rows="7" placeholder="Viscosidad de tinta | 40&#10;Desgaste de rasqueta | 35&#10;Velocidad de máquina | 25"></textarea>
+      <button class="btn" onclick="guardarMatriz()">Guardar</button>
+    </div>
+  </section>
+</main>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-check-compat.js"></script>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════
+   Contenido inicial. Sale del histórico de merma de 2025 y 2026: la
+   taxonomía de 40 defectos y la merma agregada por línea, defecto y mes.
+   Es la semilla de la SPEC-011 y hace que el foco funcione desde el
+   primer día, en vez de tardar meses en juntar criterio propio.
+   ═══════════════════════════════════════════════════════════════════════ */
+const DATOS = {"semilla": {"COR2": {"PUNTEADO": {"2025-09": 864}}, "COR3": {"PUNTEADO": {"2025-01": 846}}, "FL1": {"ARRUGA": {"2025-01": 2476, "2025-02": 4286, "2025-04": 848}, "CURLING": {"2025-01": 3238, "2025-03": 2119, "2025-08": 4263, "2026-06": 3667}, "DESLAMINADO": {"2025-02": 848, "2025-05": 848, "2025-08": 571, "2025-10": 380, "2025-11": 830}, "EXCESO DE PRESIÓN": {"2026-02": 671}, "FALTA DE PRESIÓN": {"2025-06": 1413, "2025-09": 492, "2026-01": 667, "2026-02": 524, "2026-03": 1079, "2026-04": 880, "2026-05": 3934, "2026-07": 4644}, "FALTA DE TINTA": {"2025-09": 1238, "2026-02": 574}, "FUERA DE REGISTRO": {"2026-03": 13469, "2026-04": 1055, "2026-05": 667}, "GRABADO": {"2025-03": 1695}, "IMPRESIÓN FALTANTE": {"2025-03": 378, "2025-04": 2084, "2025-05": 1238, "2025-06": 1272, "2025-08": 200, "2025-10": 1079, "2025-12": 1413}, "LAGRIMEO": {"2025-02": 6994}, "LAMINACIÓN": {"2025-01": 316, "2025-07": 1672}, "LIMPIEZA": {"2026-06": 695, "2026-07": 1747}, "MANCHAS": {"2025-01": 1918, "2025-02": 1719, "2025-03": 960, "2025-04": 962, "2025-05": 5832, "2025-06": 365, "2025-07": 1935, "2025-08": 633, "2025-09": 2128, "2025-10": 489, "2025-11": 1079, "2025-12": 695, "2026-02": 2001, "2026-03": 1650, "2026-04": 447, "2026-05": 18600, "2026-06": 209, "2026-07": 1341}, "PIOJOS": {"2025-08": 7430, "2026-05": 1775}, "POROSIDAD": {"2025-08": 7556, "2026-05": 3477}, "RAYA": {"2025-01": 848, "2025-02": 1511, "2025-03": 3702, "2025-04": 7329, "2025-06": 2068, "2025-07": 933, "2025-08": 3566, "2025-09": 1429, "2025-10": 489, "2025-12": 1238, "2026-01": 937, "2026-02": 646, "2026-03": 4887, "2026-04": 2296, "2026-05": 1079, "2026-06": 5362}, "REGISTRO": {"2025-01": 4239, "2026-01": 430, "2026-04": 527, "2026-06": 2191}, "REMOSQUEO": {"2025-01": 2543, "2025-02": 2265, "2025-03": 2797, "2025-06": 822, "2025-07": 2648, "2026-01": 1314, "2026-02": 701, "2026-03": 4363, "2026-07": 382}, "REPINTE": {"2025-03": 4662, "2025-04": 11387, "2025-09": 848, "2026-05": 4892}, "TABLETEO": {"2025-06": 619, "2025-08": 254, "2026-03": 833}, "TONOS": {"2025-02": 3673, "2026-03": 1667, "2026-06": 556}, "VELO": {"2025-06": 612, "2025-08": 300}}, "FL2": {"CURLING": {"2025-01": 1180}, "FALTA DE PRESIÓN": {"2026-01": 548, "2026-02": 1945}, "FUERA DE REGISTRO": {"2025-03": 548}, "LAGRIMEO": {"2026-06": 3112}, "PUNTEADO": {"2026-07": 600}, "RAYA": {"2025-10": 289, "2026-02": 2540, "2026-06": 1331}, "REGISTRO": {"2025-02": 548, "2025-12": 310}}, "FL3": {"ARRUGA": {"2025-10": 170, "2026-07": 571}, "DESLAMINADO": {"2026-05": 598}, "DESPRENDIMIENTO": {"2025-05": 2515, "2026-01": 1730}, "EMPLASTADO": {"2026-04": 5344}, "FALTA DE PRESIÓN": {"2026-06": 800, "2026-07": 305}, "FUERA DE REGISTRO": {"2026-04": 1956, "2026-05": 1466, "2026-06": 3077, "2026-07": 582}, "IMPRESIÓN FALTANTE": {"2025-02": 340, "2025-10": 635}, "LAMINACIÓN": {"2025-03": 510}, "MANCHAS": {"2025-03": 1238, "2025-08": 80, "2026-01": 1730, "2026-03": 2084, "2026-04": 865, "2026-05": 1683, "2026-07": 435}, "PIOJOS": {"2025-04": 223, "2026-02": 141, "2026-03": 1524, "2026-06": 797}, "RAYA": {"2025-07": 1083, "2025-08": 229, "2025-09": 35, "2026-02": 591, "2026-07": 2547}, "REGISTRO": {"2025-12": 1730, "2026-01": 1730, "2026-02": 108, "2026-04": 865}, "SOBRE SUAJADO": {"2025-06": 94, "2025-09": 4115, "2025-10": 12909, "2026-07": 461}, "VELO": {"2025-08": 41, "2026-07": 877}}, "FL4": {"ARRUGA": {"2025-07": 2159}, "CURLING": {"2025-04": 2400, "2025-08": 3186}, "DESLAMINADO": {"2025-02": 5640}, "EXCESO DE PRESIÓN": {"2026-02": 745}, "FALTA DE PRESIÓN": {"2025-07": 2015, "2026-05": 2674}, "FALTA DE TINTA": {"2026-02": 2235}, "FUERA DE REGISTRO": {"2026-02": 3604, "2026-03": 1079, "2026-07": 313}, "GRABADO": {"2025-08": 1079}, "IMPRESIÓN FALTANTE": {"2025-02": 1511, "2025-03": 1364, "2025-04": 3444, "2025-05": 1195, "2025-06": 1490, "2025-08": 745, "2025-11": 513, "2026-07": 1445}, "LAGRIMEO": {"2025-05": 197, "2026-06": 1490}, "MANCHAS": {"2025-02": 2433, "2025-03": 2159, "2025-04": 673, "2026-02": 578, "2026-03": 808, "2026-04": 1319, "2026-05": 1778}, "RAYA": {"2025-01": 2159, "2025-08": 407, "2026-06": 964, "2026-07": 777}, "REGISTRO": {"2025-05": 3077, "2025-07": 3553}, "REMOSQUEO": {"2025-03": 1741, "2026-03": 4420}, "TONOS": {"2025-04": 9954, "2025-11": 4655}, "VELO": {"2025-04": 586, "2025-07": 513}}, "LAM": {"ARRUGA": {"2025-10": 744}, "DESLAMINADO": {"2025-12": 903}, "LAMINACIÓN": {"2025-05": 8768}}, "LAM1": {"LAMINACIÓN": {"2026-07": 693}}, "OMEGA": {"DESPRENDIMIENTO": {"2025-07": 3, "2025-08": 80}}, "PEG": {"ADHESIVO": {"2026-05": 1510}}, "PEG1": {"ADHESIVO": {"2025-08": 352, "2025-09": 1162, "2025-10": 3729, "2025-11": 3315, "2025-12": 2357, "2026-01": 1058, "2026-02": 352, "2026-04": 2121, "2026-05": 421, "2026-06": 2408, "2026-07": 3357}, "ANCHO PLANO": {"2025-03": 283, "2026-05": 350}, "DOBLEZ": {"2025-03": 86}, "MANGA PEGADA": {"2025-02": 352, "2025-06": 3143, "2025-07": 352, "2026-07": 730}, "PEGADO": {"2025-08": 400}, "PUNTEADO": {"2025-02": 2848, "2025-03": 1410, "2025-04": 1762, "2025-07": 1706, "2025-09": 2400, "2025-11": 600, "2026-01": 2220}, "TRASLAPE": {"2025-07": 1482}}, "PEG1 ": {"ADHESIVO": {"2025-02": 705}}, "PEG2": {"ADHESIVO": {"2025-05": 1231, "2025-06": 705, "2025-07": 888, "2025-08": 12002, "2025-09": 3878, "2025-10": 5001, "2025-11": 705, "2025-12": 62, "2026-02": 1219, "2026-04": 692, "2026-05": 1288, "2026-06": 3020}, "ANCHO PLANO": {"2025-02": 833, "2025-03": 2468, "2025-05": 1799, "2025-10": 1202, "2025-12": 2596, "2026-04": 2115, "2026-06": 1802, "2026-07": 2026}, "DOBLEZ": {"2025-04": 338, "2025-10": 338, "2025-12": 125, "2026-01": 1762}, "EMPALMES": {"2026-04": 705}, "MANGA ABIERTA": {"2026-03": 533}, "MANGA PEGADA": {"2025-01": 352, "2025-02": 837, "2025-04": 1363, "2025-05": 2016, "2025-06": 5640, "2025-12": 1013}, "PEGADO": {"2026-01": 730}, "PUNTEADO": {"2025-01": 2468, "2025-02": 705, "2025-04": 1762, "2025-07": 352, "2025-08": 1355, "2026-04": 352, "2026-06": 600}, "TRASLAPE": {"2026-06": 2010}}, "PEG3": {"ADHESIVO": {"2026-03": 375}, "ANCHO PLANO": {"2025-05": 625}, "TRASLAPE": {"2025-05": 375}}, "PEG7": {"PUNTEADO": {"2026-06": 600}}, "REF1": {"ADHESIVO": {"2026-06": 680}, "EMPALMES": {"2026-05": 750, "2026-06": 189}, "MANCHAS": {"2026-03": 829}, "REFILADO MOVIDO": {"2025-08": 465}}, "REF2": {"MAL REFILADO": {"2025-06": 736}, "REFILADO MOVIDO": {"2025-11": 1287}}, "REF3": {"MAL REFILADO": {"2025-07": 1655}, "ONDULACIÓN": {"2025-09": 47}}, "REV4": {"ARRUGA": {"2025-10": 189}}, "RT5": {"LAGRIMEO": {"2025-01": 737}, "MANCHAS": {"2025-05": 455}, "RAYA": {"2025-06": 69}, "REGISTRO": {"2025-01": 369}}, "RT6": {"ADHESIVO": {"2025-08": 352, "2026-02": 1058, "2026-05": 352}, "ANCHO PLANO": {"2026-07": 338}, "DESPRENDIMIENTO": {"2025-05": 682}, "EMPALMES": {"2026-06": 536, "2026-07": 352}, "FALTA DE PRESIÓN": {"2025-12": 540, "2026-05": 3850}, "FALTA DE TINTA": {"2026-02": 352, "2026-07": 1735}, "FUERA DE REGISTRO": {"2025-10": 189, "2026-02": 352, "2026-04": 352, "2026-06": 1407, "2026-07": 705}, "IMPRESIÓN FALTANTE": {"2025-03": 2468, "2025-05": 590, "2025-11": 352}, "LAGRIMEO": {"2025-01": 5970, "2025-02": 4632, "2025-03": 705, "2025-04": 3878, "2025-05": 1800, "2025-06": 4582, "2025-07": 690, "2025-09": 705, "2025-10": 633, "2026-01": 3784, "2026-02": 352, "2026-03": 2018, "2026-04": 1058, "2026-05": 1441, "2026-06": 705, "2026-07": 400}, "MAL REFILADO": {"2025-04": 352, "2025-07": 705}, "MANCHAS": {"2025-01": 1474, "2025-02": 705, "2025-04": 189, "2025-05": 9442, "2025-06": 352, "2025-09": 705, "2025-10": 3878, "2025-11": 705, "2026-01": 1762, "2026-02": 705, "2026-04": 2115, "2026-05": 700, "2026-06": 3163, "2026-07": 1815}, "MANGA PEGADA": {"2025-09": 352}, "PEGADO": {"2026-02": 352}, "PIOJOS": {"2025-03": 352, "2025-06": 352}, "PUNTEADO": {"2026-07": 1072}, "RAYA": {"2006-06": 1072, "2025-01": 417, "2025-02": 3860, "2025-03": 984, "2025-04": 3133, "2025-05": 6095, "2025-06": 7755, "2025-07": 5606, "2025-08": 3159, "2025-09": 3896, "2025-10": 8258, "2025-11": 3502, "2025-12": 352, "2026-01": 13673, "2026-02": 3525, "2026-04": 9124, "2026-05": 7000, "2026-06": 10763, "2026-07": 12984}, "REFILADO MOVIDO": {"2025-01": 833, "2025-09": 1410, "2026-05": 1510}, "REGISTRO": {"2025-01": 833, "2025-02": 3750, "2025-05": 7988, "2025-06": 2115, "2026-01": 1175, "2026-02": 1058, "2026-03": 338, "2026-04": 705, "2026-05": 4675, "2026-06": 2235, "2026-07": 1762}, "REPINTE": {"2025-07": 321, "2026-05": 705, "2026-07": 1058}, "RESEQUEDAD": {"2025-01": 1925, "2025-04": 705, "2025-05": 352, "2025-11": 352, "2026-04": 352, "2026-05": 1514, "2026-07": 352}, "TONOS": {"2025-02": 2115, "2025-04": 3525, "2025-10": 1058, "2026-01": 705, "2026-02": 352}, "VELO": {"2025-02": 1058, "2025-03": 4925, "2025-04": 352, "2025-05": 1132, "2025-06": 804, "2025-09": 352, "2025-10": 705, "2026-02": 352, "2026-05": 1410, "2026-06": 1271, "2026-07": 400}}, "RT7": {"ADHESIVO": {"2025-08": 562, "2025-11": 1287, "2026-02": 482, "2026-04": 400, "2026-05": 755}, "ARRUGA": {"2025-05": 1028, "2026-04": 347}, "DESPRENDIMIENTO": {"2025-04": 23166}, "EXCESO DE PRESIÓN": {"2026-02": 400, "2026-07": 2666}, "FALTA DE PRESIÓN": {"2026-03": 2133, "2026-05": 141, "2026-07": 3469}, "FALTA DE TINTA": {"2026-02": 966, "2026-06": 340}, "FUERA DE REGISTRO": {"2025-10": 378, "2026-02": 1154, "2026-03": 493, "2026-05": 1435, "2026-06": 4169, "2026-07": 513}, "GOLPE": {"2025-12": 3895, "2026-02": 5967}, "IMPRESIÓN FALTANTE": {"2025-02": 1414, "2025-03": 40900, "2025-04": 1053, "2025-06": 566, "2025-11": 15600, "2026-03": 566}, "LAGRIMEO": {"2025-01": 2746, "2025-02": 682, "2025-03": 755, "2025-04": 363, "2025-05": 6862, "2025-06": 3034, "2025-07": 7293, "2025-08": 3671, "2025-09": 3845, "2025-10": 7434, "2025-11": 7639, "2025-12": 508, "2026-01": 2574, "2026-02": 9177, "2026-03": 600, "2026-04": 3107, "2026-05": 5743, "2026-06": 12432, "2026-07": 8846}, "LIMPIEZA": {"2025-11": 1399}, "MAL REFILADO": {"2026-03": 189}, "MANCHAS": {"2025-01": 8835, "2025-02": 562, "2025-03": 189, "2025-04": 2932, "2025-05": 2913, "2025-06": 1666, "2025-07": 1314, "2025-09": 682, "2025-11": 1544, "2025-12": 378, "2026-01": 603, "2026-02": 944, "2026-03": 5266, "2026-04": 529, "2026-05": 2228, "2026-06": 1209, "2026-07": 4099}, "MANGA PEGADA": {"2025-01": 189, "2025-07": 1072}, "PEGADO": {"2026-02": 965}, "PIOJOS": {"2025-06": 566, "2026-02": 800}, "POROSIDAD": {"2025-08": 4500}, "PUNTEADO": {"2025-08": 3900}, "RAYA": {"2025-02": 944, "2025-03": 771, "2025-04": 2250, "2025-06": 8868, "2025-07": 11853, "2025-08": 2631, "2025-09": 3281, "2025-10": 189, "2025-11": 827, "2026-01": 9044, "2026-02": 2574, "2026-03": 6637, "2026-04": 3645, "2026-05": 3675, "2026-06": 5175, "2026-07": 15850}, "REFILADO MOVIDO": {"2025-06": 730, "2025-10": 378}, "REGISTRO": {"2025-02": 536, "2025-03": 257, "2025-05": 1942, "2025-06": 378, "2025-07": 15455, "2025-08": 751, "2025-11": 5242, "2025-12": 566, "2026-01": 13777, "2026-02": 4201, "2026-03": 755, "2026-04": 378, "2026-05": 2575, "2026-06": 1678, "2026-07": 4031}, "REMOSQUEO": {"2025-08": 5454, "2026-02": 3600}, "REPINTE": {"2025-03": 830, "2026-05": 1200}, "RESEQUEDAD": {"2025-02": 786, "2026-05": 924}, "TEXTO FALTANTE": {"2026-02": 566, "2026-05": 400}, "TONOS": {"2026-03": 349, "2026-05": 1079, "2026-06": 600}, "TRASLAPE": {"2026-06": 1255}, "VELO": {"2025-01": 3457, "2025-03": 771, "2025-05": 11416, "2025-06": 2069, "2025-07": 6698, "2025-09": 1125, "2025-10": 1855, "2025-11": 2727, "2025-12": 566, "2026-01": 1363, "2026-02": 5177, "2026-03": 2045, "2026-04": 1202, "2026-05": 777, "2026-06": 340, "2026-07": 1602}}, "XEIKON": {"PIOJOS": {"2025-08": 1}, "REPINTE": {"2025-07": 370}}}, "defectos": ["ADHESIVO", "ANCHO PLANO", "ARRUGA", "CURLING", "DESLAMINADO", "DESPRENDIMIENTO", "DOBLEZ", "EMPALMES", "EMPLASTADO", "EXCESO DE PRESIÓN", "FALTA DE PRESIÓN", "FALTA DE TINTA", "FUERA DE REGISTRO", "GOLPE", "GRABADO", "IMPRESIÓN FALTANTE", "LAGRIMEO", "LAMINACIÓN", "LIMPIEZA", "MAL REFILADO", "MANCHAS", "MANGA ABIERTA", "MANGA PEGADA", "ONDULACIÓN", "PEGADO", "PIOJOS", "POROSIDAD", "PUNTEADO", "RAYA", "REFILADO MOVIDO", "REGISTRO", "REMOSQUEO", "REPINTE", "RESEQUEDAD", "SOBRE SUAJADO", "TABLETEO", "TEXTO FALTANTE", "TONOS", "TRASLAPE", "VELO"], "maquinas": [{"id": "RT7", "area": "ROTOGRABADO"}, {"id": "RT6", "area": "ROTOGRABADO"}, {"id": "RT5", "area": "ROTOGRABADO"}, {"id": "FL1", "area": "FLEXOGRAFIA"}, {"id": "FL2", "area": "FLEXOGRAFIA"}, {"id": "FL3", "area": "FLEXOGRAFIA"}, {"id": "FL4", "area": "FLEXOGRAFIA"}, {"id": "PEG1", "area": "PEGADO"}, {"id": "PEG2", "area": "PEGADO"}, {"id": "PEG3", "area": "PEGADO"}, {"id": "PEG7", "area": "PEGADO"}, {"id": "REF1", "area": "REFILADO"}, {"id": "REF2", "area": "REFILADO"}, {"id": "REF3", "area": "REFILADO"}, {"id": "LAM1", "area": "REFILADO"}, {"id": "COR2", "area": "CORTE"}, {"id": "COR3", "area": "CORTE"}, {"id": "REV4", "area": "REVISADO"}, {"id": "XEIKON", "area": "DIGITAL"}, {"id": "OMEGA", "area": "DIGITAL"}]};
+const SEMILLA  = DATOS.semilla;
+const DEFECTOS = DATOS.defectos;
+const MAQUINAS = DATOS.maquinas;
+
+let db=null, suiteAuth=null, suiteDb=null;
+let sesion=null;                       // {nomina, nombre, rol}
+let DB={hallazgos:[], inspecciones:[], matriz:{}};
+let pendiente=null;                    // inspección en curso, esperando defectos
+
+const $  = id => document.getElementById(id);
+const esc = t => String(t==null?'':t).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function toast(msg){
+  const t=document.createElement('div'); t.id='toast'; t.textContent=msg;
+  document.body.appendChild(t); setTimeout(()=>t.remove(), 3200);
+}
+
+/* ═══════════════ ACCESO (SPEC-001) ═══════════════
+   Desaparecen las tres contraseñas compartidas de la versión anterior.
+   Dos de ellas eran además las mismas de otras aplicaciones, así que
+   quien conocía las de EPP entraba aquí. */
+function initApps(){
+  if(firebase.apps.length) return;
+  firebase.initializeApp(FIREBASE_CONFIG);
+  if(APPCHECK_SITE_KEY){
+    try { firebase.appCheck().activate(
+      new firebase.appCheck.ReCaptchaEnterpriseProvider(APPCHECK_SITE_KEY), true); }
+    catch(e){ console.error('App Check:', e); }
+  }
+  const s = firebase.initializeApp(SUITE_CONFIG, 'suite');
+  suiteAuth = s.auth(); suiteDb = s.firestore();
+  suiteAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(e=>console.warn(e));
+}
+
+function mensajeDeError(c){
+  switch(c){
+    case 'auth/invalid-credential': case 'auth/wrong-password': case 'auth/user-not-found':
+      return 'Nómina o clave incorrecta.';
+    case 'auth/too-many-requests':      return 'Demasiados intentos fallidos. Espera unos minutos.';
+    case 'auth/network-request-failed': return 'Sin conexión. Revisa tu red.';
+    default: return 'No se pudo iniciar sesión. Inténtalo de nuevo.';
+  }
+}
+
+$('btn-entrar').onclick = async () => {
+  const nom=$('in-nom').value.trim(), pwd=$('in-pwd').value;
+  if(!nom||!pwd){ $('login-err').textContent='Escribe tu nómina y tu clave.'; return; }
+  initApps(); $('btn-entrar').disabled=true; $('login-err').textContent='';
+  try{
+    await suiteAuth.signInWithEmailAndPassword(nom+DOMINIO, pwd);
+    await abrirSesion(suiteAuth.currentUser);
+  }catch(e){
+    console.error('Login:', e);
+    $('login-err').textContent = e.esDeAcceso ? e.message : mensajeDeError(e.code);
+    $('in-pwd').value=''; try{ await suiteAuth.signOut(); }catch(_){}
+  }finally{ $('btn-entrar').disabled=false; }
+};
+
+// Tener cuenta no da acceso: lo da el valor 'calidad' en `apps`.
+async function abrirSesion(user){
+  const nomina=(user.email||'').split('@')[0];
+  const doc = await suiteDb.collection('colaboradores').doc(nomina).get();
+  const no = m => { const e=new Error(m); e.esDeAcceso=true; throw e; };
+  if(!doc.exists) no('Tu cuenta no tiene registro de personal. Avisa a Recursos Humanos.');
+  const c = doc.data()||{};
+  if(c.estatus!=='ACTIVO') no('Esta cuenta está dada de baja.');
+  if(!(c.apps||[]).includes(APP_ID)) no('Tu cuenta no tiene acceso a Control de Procesos.');
+
+  // Ausencia de papel equivale al más bajo: nunca se concede por omisión.
+  const rol = (c.roles||{})[APP_ID] || 'INSPECTOR';
+  sesion = { nomina, nombre: c.nombreCompleto || nomina, rol };
+
+  $('b-nom').textContent = nomina;
+  $('b-rol').textContent = {ADMIN:'Administrador', SUPERVISOR:'Supervisor', INSPECTOR:'Inspector'}[rol] || rol;
+  $('login').classList.add('hide'); $('app').classList.remove('hide');
+
+  armarNav(); poblarSelects(); conectar();
+}
+
+async function salir(){
+  try{ await firebase.auth().signOut(); }catch(e){}
+  try{ await suiteAuth.signOut(); }catch(e){}
+  location.reload();
+}
+
+/* ═══════════════ NAVEGACIÓN POR PAPEL (SPEC-002) ═══════════════ */
+const PAGINAS = [
+  {id:'inspeccion', nom:'Inspección',    roles:['INSPECTOR','ADMIN']},
+  {id:'acciones',   nom:'Acciones',      roles:['INSPECTOR','SUPERVISOR','ADMIN']},
+  {id:'historial',  nom:'Historial',     roles:['INSPECTOR','SUPERVISOR','ADMIN']},
+  {id:'tendencia',  nom:'Comportamiento',roles:['INSPECTOR','SUPERVISOR','ADMIN']},
+  {id:'matriz',     nom:'Matriz',        roles:['ADMIN']}
+];
+function armarNav(){
+  const vis = PAGINAS.filter(p=>p.roles.includes(sesion.rol));
+  $('nav').innerHTML = vis.map((p,i)=>
+    `<button class="${i?'':'on'}" onclick="verPagina('${p.id}',this)">${p.nom}</button>`).join('');
+  verPagina(vis[0].id);
+}
+function verPagina(id, btn){
+  PAGINAS.forEach(p=>$('pg-'+p.id).classList.add('hide'));
+  $('pg-'+id).classList.remove('hide');
+  if(btn){ [...$('nav').children].forEach(b=>b.classList.remove('on')); btn.classList.add('on'); }
+  if(id==='acciones')  pintarAcciones();
+  if(id==='historial') pintarHistorial();
+  if(id==='tendencia') pintarTendencia();
+  if(id==='matriz')    cargarMatriz();
+}
+
+function poblarSelects(){
+  const om = MAQUINAS.map(m=>`<option value="${m.id}">${m.id} · ${m.area}</option>`).join('');
+  $('f-maquina').innerHTML = om; $('t-maquina').innerHTML = om;
+  $('m-maquina').innerHTML = '<option value="">— Todas —</option>' + om;
+  const od = DEFECTOS.map(d=>`<option>${d}</option>`).join('');
+  $('t-defecto').innerHTML = od; $('m-defecto').innerHTML = od;
+  pintarFoco();
+}
+
+/* ═══════════════ DATOS ═══════════════ */
+function conectar(){
+  db = firebase.database();
+  // SPEC-010: las reglas de este proyecto exigirán sesión. La anónima no
+  // identifica a nadie; la trazabilidad viene de lo que graba cada registro.
+  firebase.auth().signInAnonymously().catch(e=>{
+    console.error('Sesión anónima:', e);
+    toast('Sin acceso a la base. Avisa a sistemas.');
+  });
+  ['hallazgos','inspecciones'].forEach(k=>{
+    db.ref('cal/'+k).on('value', s=>{
+      const v=s.val()||{};
+      DB[k] = Object.keys(v).map(id=>({_id:id, ...v[id]}));
+      pintarFoco();
+    });
+  });
+  db.ref('cal/matriz').on('value', s=>{ DB.matriz = s.val()||{}; pintarFoco(); });
+}
+
+/* ═══════════════ VENTANAS DE TIEMPO (SPEC-004) ═══════════════
+   La ventana de foco son tres meses naturales: el mes en curso y los dos
+   anteriores. No son noventa días corridos. */
+function mesesFoco(){
+  const hoy=new Date(), out=[];
+  for(let i=0;i<3;i++){
+    const d=new Date(hoy.getFullYear(), hoy.getMonth()-i, 1);
+    out.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'));
+  }
+  return out;
+}
+const nombreMes = m => {
+  const [a,x]=m.split('-');
+  return ['','enero','febrero','marzo','abril','mayo','junio','julio','agosto',
+          'septiembre','octubre','noviembre','diciembre'][+x] + ' ' + a;
+};
+
+// Metros por defecto de una máquina, en un conjunto de meses.
+function metrosPorDefecto(maquina, meses){
+  const out={};
+  const sm = SEMILLA[maquina]||{};
+  Object.keys(sm).forEach(def=>{
+    meses.forEach(m=>{ if(sm[def][m]) out[def]=(out[def]||0)+sm[def][m]; });
+  });
+  // Los hallazgos registrados en la app se suman a la semilla, pero como
+  // eventos: cuentan 1, no metros, porque muchas veces evitan la merma.
+  DB.hallazgos.filter(h=>h.maquina===maquina).forEach(h=>{
+    const m=(h.fecha||'').slice(0,7);
+    if(meses.includes(m)) out[h.defecto]=(out[h.defecto]||0)+1;
+  });
+  return out;
+}
+
+/* Foco: qué vigilar en esta máquina. Si la ventana de tres meses tiene
+   muy poca historia, se amplía sola y se dice con qué periodo se calculó. */
+function calcularFoco(maquina){
+  let meses = mesesFoco(), datos = metrosPorDefecto(maquina, meses), ampliada=false;
+  const suma = o => Object.values(o).reduce((a,b)=>a+b,0);
+  let intentos=0;
+  while(suma(datos) < 500 && intentos < 9){        // umbral provisional
+    const ult = meses[meses.length-1].split('-');
+    const d = new Date(+ult[0], +ult[1]-2, 1);
+    meses.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'));
+    datos = metrosPorDefecto(maquina, meses); ampliada=true; intentos++;
+  }
+  const total = suma(datos);
+  const lista = Object.keys(datos).map(d=>({defecto:d, val:datos[d], pct: total? 100*datos[d]/total : 0}))
+                      .sort((a,b)=>b.val-a.val).slice(0,6);
+  return {lista, total, meses, ampliada};
+}
+
+// Comparación contra todo el histórico, para saber si el defecto sube o baja.
+function tendencia(maquina, defecto, pctFoco){
+  const sm=(SEMILLA[maquina]||{});
+  let tot=0, ddef=0;
+  Object.keys(sm).forEach(d=>Object.keys(sm[d]).forEach(m=>{
+    tot+=sm[d][m]; if(d===defecto) ddef+=sm[d][m];
+  }));
+  if(!tot) return {txt:'—', cls:'t-eq'};
+  const hist = 100*ddef/tot, dif = pctFoco - hist;
+  if(dif >  2) return {txt:'▲ sube', cls:'t-up'};
+  if(dif < -2) return {txt:'▼ baja', cls:'t-down'};
+  return {txt:'= igual', cls:'t-eq'};
+}
+
+function pintarFoco(){
+  const maq = $('f-maquina').value; if(!maq) return;
+  const f = calcularFoco(maq);
+  if(!f.lista.length){
+    $('foco').innerHTML = '<div class="vacio">Sin historia suficiente de esta máquina.<br>'+
+      'El foco aparecerá conforme se registren hallazgos.</div>'; return;
+  }
+  const max = f.lista[0].pct;
+  let html = '';
+  if(f.ampliada){
+    html += `<div class="aviso aviso-amber">Esta máquina tuvo poca actividad en los últimos
+      tres meses, así que el foco se calculó con un periodo más amplio:
+      desde ${nombreMes(f.meses[f.meses.length-1])}. Tómalo con reserva.</div>`;
+  } else {
+    html += `<div class="aviso">Periodo: ${nombreMes(f.meses[2])} a ${nombreMes(f.meses[0])}.
+      El mes en curso va incompleto, así que pesa menos que los otros dos.</div>`;
+  }
+  html += f.lista.map(x=>{
+    const t = tendencia(maq, x.defecto, x.pct);
+    const vars = variablesDe(x.defecto, maq);
+    return `<div class="foco-item">
+      <div class="foco-nom">${esc(x.defecto)}
+        ${vars.length? `<div style="font-size:10.5px;color:var(--text2);font-weight:400">
+           vigilar: ${esc(vars.slice(0,3).join(', '))}</div>`:''}</div>
+      <div class="foco-bar"><i style="width:${Math.round(100*x.pct/max)}%"></i></div>
+      <div class="foco-pct">${x.pct.toFixed(0)}%</div>
+      <div class="tend ${t.cls}">${t.txt}</div>
+    </div>`;
+  }).join('');
+  const sinMatriz = f.lista.filter(x=>!variablesDe(x.defecto,maq).length).length;
+  if(sinMatriz){
+    html += `<div class="aviso" style="margin:12px 0 0">${sinMatriz} de estos defectos todavía
+      no tienen variables asociadas. Se capturan en la pestaña Matriz.</div>`;
+  }
+  $('foco').innerHTML = html;
+}
+
+function variablesDe(defecto, maquina){
+  const m = DB.matriz||{};
+  const esp = m[defecto+'@'+maquina], gen = m[defecto+'@'];
+  const src = esp || gen;
+  return src ? (src.vars||[]).map(v=>v.nombre) : [];
+}
+
+/* ═══════════════ INSPECCIÓN (SPEC-004, SPEC-007) ═══════════════ */
+function resolver(pasa){
+  const etiqueta = $('f-etiqueta').value.trim();
+  if(!etiqueta){ toast('Escribe el número de etiqueta'); return; }
+  const base = {
+    etapa: $('f-etapa').value, turno: $('f-turno').value,
+    maquina: $('f-maquina').value, etiqueta,
+    fecha: new Date().toISOString().slice(0,10),
+    ts: Date.now(),
+    // Copia, no referencia: quién inspeccionó queda grabado con nombre y
+    // nómina tal como estaban. El inspector es quien inició sesión, no un
+    // nombre elegido de una lista.
+    inspectorNomina: sesion.nomina, inspectorNombre: sesion.nombre,
+    resultado: pasa ? 'pasa' : 'no pasa'
+  };
+  if(pasa){
+    db.ref('cal/inspecciones').push(base)
+      .then(()=>{ toast('Inspección registrada'); $('f-etiqueta').value=''; })
+      .catch(e=>toast('Error: '+e.message));
+  } else {
+    pendiente = base; abrirHallazgo();
+  }
+}
+
+function abrirHallazgo(){
+  const vars = new Set();
+  DEFECTOS.forEach(d=>variablesDe(d, pendiente.maquina).forEach(v=>vars.add(v)));
+  const opciones = [...vars].sort().map(v=>`<option>${esc(v)}</option>`).join('');
+  const cont = document.createElement('div');
+  cont.className='modal'; cont.id='modal-hallazgo';
+  cont.innerHTML = `<div class="modal-box">
+    <div class="modal-t">Registrar hallazgo</div>
+    <div style="font-size:12.5px;color:var(--text2);margin-bottom:10px">
+      ${esc(pendiente.maquina)} · etiqueta ${esc(pendiente.etiqueta)} · ${esc(pendiente.turno)}
+    </div>
+    <label>Defecto encontrado</label>
+    <select id="h-defecto" onchange="sugerirCausas()">
+      ${DEFECTOS.map(d=>`<option>${d}</option>`).join('')}
+    </select>
+    <label>Causa: qué variable de proceso lo provocó</label>
+    <select id="h-causa">
+      <option value="">— Selecciona —</option>
+      ${opciones}
+      <option value="__otra">Otra (escribirla)</option>
+      <option value="__nd">No determinada</option>
+    </select>
+    <input id="h-causa-otra" class="hide" placeholder="Escribe la variable" style="margin-top:8px">
+    <div style="font-size:11px;color:var(--text2);margin-top:6px">
+      Si no la sabes, marca «no determinada». Es preferible a inventarla:
+      esta captura es lo que corrige la matriz con datos reales.
+    </div>
+    <label>Metros afectados (aproximado)</label>
+    <input id="h-metros" inputmode="numeric" placeholder="Opcional">
+    <label style="display:flex;align-items:center;gap:8px;margin-top:14px">
+      <input type="checkbox" id="h-paro" style="width:auto"> Se solicitó paro de máquina
+    </label>
+    <label>Observaciones</label>
+    <textarea id="h-obs" rows="2"></textarea>
+    <div class="row" style="margin-top:14px">
+      <button class="btn btn-2" style="margin:0" onclick="cerrarModal('modal-hallazgo')">Cancelar</button>
+      <button class="btn" style="margin:0" onclick="guardarHallazgo()">Registrar</button>
+    </div>
+  </div>`;
+  document.body.appendChild(cont);
+  $('h-causa').onchange = () => {
+    $('h-causa-otra').classList.toggle('hide', $('h-causa').value!=='__otra');
+  };
+  sugerirCausas();
+}
+
+function sugerirCausas(){
+  const def = $('h-defecto').value;
+  const vars = variablesDe(def, pendiente.maquina);
+  const sel = $('h-causa');
+  const fijas = `<option value="">— Selecciona —</option>`;
+  const otras = `<option value="__otra">Otra (escribirla)</option>
+                 <option value="__nd">No determinada</option>`;
+  sel.innerHTML = fijas + vars.map(v=>`<option>${esc(v)}</option>`).join('') + otras;
+}
+
+function cerrarModal(id){ const e=$(id); if(e) e.remove(); }
+
+function guardarHallazgo(){
+  const causaSel = $('h-causa').value;
+  if(!causaSel){ toast('La causa es obligatoria'); return; }
+  let causa = causaSel;
+  if(causaSel==='__otra'){
+    causa = $('h-causa-otra').value.trim();
+    if(!causa){ toast('Escribe la variable'); return; }
+  } else if(causaSel==='__nd'){ causa='NO DETERMINADA'; }
+
+  const h = { ...pendiente,
+    defecto: $('h-defecto').value,
+    causa,
+    causaDeterminada: causaSel!=='__nd',
+    metros: parseInt($('h-metros').value,10) || 0,
+    paro: $('h-paro').checked,
+    obs: $('h-obs').value.trim(),
+    estado: 'abierta'
+  };
+  const ref = db.ref('cal/hallazgos').push();
+  ref.set(h)
+    .then(()=>db.ref('cal/inspecciones').push({...pendiente, hallazgoId: ref.key}))
+    .then(()=>{
+      cerrarModal('modal-hallazgo');
+      toast(h.paro ? 'Hallazgo registrado. Avisa al supervisor del paro.' : 'Hallazgo registrado');
+      $('f-etiqueta').value=''; pendiente=null;
+    })
+    .catch(e=>toast('Error: '+e.message));
+}
+
+/* ═══════════════ ACCIONES CORRECTIVAS (SPEC-007) ═══════════════
+   La corrección más importante respecto de la versión anterior, donde las
+   304 acciones quedaron abiertas para siempre. */
+function pintarAcciones(){
+  const filtro = $('f-estado').value;
+  const list = DB.hallazgos
+    .filter(h=>!filtro || (h.estado||'abierta')===filtro)
+    .sort((a,b)=>(b.ts||0)-(a.ts||0));
+  if(!list.length){ $('lista-acciones').innerHTML='<div class="vacio">Sin acciones que mostrar.</div>'; return; }
+
+  // Quien detecta no cierra: solo supervisor y admin pueden cerrar.
+  const puedeCerrar = sesion.rol==='SUPERVISOR' || sesion.rol==='ADMIN';
+  $('lista-acciones').innerHTML = list.map(h=>{
+    const cerrada = (h.estado==='cerrada');
+    return `<div class="item">
+      <div style="display:flex;justify-content:space-between;gap:8px">
+        <h4>${esc(h.defecto)}</h4>
+        <span class="pill ${cerrada?'p-green':'p-red'}">${cerrada?'cerrada':'abierta'}</span>
+      </div>
+      <div class="meta">${esc(h.maquina)} · etiqueta ${esc(h.etiqueta)} · ${esc(h.fecha)} · ${esc(h.turno)}</div>
+      <div class="meta">Detectó: ${esc(h.inspectorNombre)} (${esc(h.inspectorNomina)})</div>
+      <div class="meta">Causa: ${esc(h.causa)}${h.causaDeterminada===false?' <span class="pill p-amber">sin determinar</span>':''}</div>
+      ${h.paro?'<div class="meta"><span class="pill p-red">paro de máquina</span></div>':''}
+      ${h.obs?`<div class="meta" style="margin-top:5px">${esc(h.obs)}</div>`:''}
+      ${cerrada ? `<div class="meta" style="margin-top:7px;color:var(--green)">
+          Cerró: ${esc(h.cerradoPorNombre)} · ${esc(h.fechaCierre)}<br>${esc(h.correccion)}</div>`
+        : (puedeCerrar
+            ? `<button class="btn btn-sm" style="margin-top:9px" onclick="abrirCierre('${h._id}')">Atender y cerrar</button>`
+            : `<div class="meta" style="margin-top:7px;color:var(--text3)">Pendiente de que un supervisor la atienda.</div>`)}
+    </div>`;
+  }).join('');
+}
+
+function abrirCierre(id){
+  const h = DB.hallazgos.find(x=>x._id===id); if(!h) return;
+  const c = document.createElement('div');
+  c.className='modal'; c.id='modal-cierre';
+  c.innerHTML = `<div class="modal-box">
+    <div class="modal-t">Cerrar acción correctiva</div>
+    <div style="font-size:12.5px;color:var(--text2);margin-bottom:10px">
+      ${esc(h.defecto)} en ${esc(h.maquina)}, detectado por ${esc(h.inspectorNombre)}.
+    </div>
+    <label>Qué se corrigió</label>
+    <textarea id="c-texto" rows="3" placeholder="Describe la corrección aplicada"></textarea>
+    <label>Causa confirmada</label>
+    <input id="c-causa" value="${esc(h.causa)}">
+    <div style="font-size:11px;color:var(--text2);margin-top:6px">
+      Si al atenderlo resultó ser otra variable, corrígela. Es lo que alimenta la matriz.
+    </div>
+    <div class="row" style="margin-top:14px">
+      <button class="btn btn-2" style="margin:0" onclick="cerrarModal('modal-cierre')">Cancelar</button>
+      <button class="btn" style="margin:0" onclick="confirmarCierre('${id}')">Cerrar acción</button>
+    </div>
+  </div>`;
+  document.body.appendChild(c);
+}
+
+function confirmarCierre(id){
+  const txt = $('c-texto').value.trim();
+  if(!txt){ toast('Describe qué se corrigió'); return; }
+  db.ref('cal/hallazgos/'+id).update({
+    estado:'cerrada', correccion:txt,
+    causa: $('c-causa').value.trim(),
+    causaDeterminada: true,
+    cerradoPorNomina: sesion.nomina, cerradoPorNombre: sesion.nombre,
+    fechaCierre: new Date().toISOString().slice(0,10), tsCierre: Date.now()
+  }).then(()=>{ cerrarModal('modal-cierre'); toast('Acción cerrada'); pintarAcciones(); })
+    .catch(e=>toast('Error: '+e.message));
+}
+
+/* ═══════════════ HISTORIAL ═══════════════ */
+function pintarHistorial(){
+  const list = [...DB.inspecciones].sort((a,b)=>(b.ts||0)-(a.ts||0)).slice(0,60);
+  if(!list.length){ $('lista-historial').innerHTML='<div class="vacio">Todavía no hay inspecciones.</div>'; return; }
+  $('lista-historial').innerHTML = list.map(i=>`<div class="item">
+    <div style="display:flex;justify-content:space-between;gap:8px">
+      <h4>${esc(i.maquina)} · etiqueta ${esc(i.etiqueta)}</h4>
+      <span class="pill ${i.resultado==='pasa'?'p-green':'p-red'}">${esc(i.resultado)}</span>
+    </div>
+    <div class="meta">${esc(i.fecha)} · ${esc(i.turno)} · ${i.etapa==='arranque'?'arranque':'en proceso'}</div>
+    <div class="meta">${esc(i.inspectorNombre)} (${esc(i.inspectorNomina)})</div>
+  </div>`).join('');
+}
+
+/* ═══════════════ COMPORTAMIENTO EN EL TIEMPO (SPEC-004) ═══════════════
+   La segunda ventana: todo el histórico, para saber si el defecto
+   disminuyó, se mantuvo o aumentó. No pesa en el foco, da contexto. */
+function pintarTendencia(){
+  const maq=$('t-maquina').value, def=$('t-defecto').value;
+  const sm=(SEMILLA[maq]||{})[def]||{};
+  const meses = Object.keys(sm).sort();
+  if(!meses.length){
+    $('tendencia').innerHTML='<div class="vacio">Sin registros de este defecto en esta máquina.</div>';
+    return;
+  }
+  const max = Math.max(...meses.map(m=>sm[m]));
+  const foco = mesesFoco();
+  $('tendencia').innerHTML =
+    `<div class="aviso">Metros rechazados por mes. Los meses de la ventana de foco van marcados.</div>` +
+    meses.map(m=>`<div class="foco-item">
+      <div class="foco-nom" style="min-width:110px">${nombreMes(m)}
+        ${foco.includes(m)?'<span class="pill p-navy" style="margin-left:5px">foco</span>':''}</div>
+      <div class="foco-bar"><i style="width:${Math.round(100*sm[m]/max)}%"></i></div>
+      <div class="foco-pct">${sm[m].toLocaleString('es-MX')}</div>
+    </div>`).join('');
+}
+
+/* ═══════════════ MATRIZ (SPEC-005) ═══════════════
+   Catálogo editable, no código: la junta captura el resultado sin depender
+   de una versión nueva, y lo corrige cuando cambie un material. */
+function claveMatriz(){ return $('m-defecto').value + '@' + $('m-maquina').value; }
+
+function cargarMatriz(){
+  const r = (DB.matriz||{})[claveMatriz()];
+  $('m-vars').value = r ? (r.vars||[]).map(v=>v.nombre+' | '+v.peso).join('\n') : '';
+}
+
+function guardarMatriz(){
+  const vars = $('m-vars').value.split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{
+    const p = l.split('|');
+    return { nombre: p[0].trim(), peso: parseInt((p[1]||'').trim(),10) || 0 };
+  });
+  db.ref('cal/matriz/'+claveMatriz().replace(/[.#$/\[\]]/g,'_')).set({
+    defecto: $('m-defecto').value, maquina: $('m-maquina').value, vars,
+    actualizadoPor: sesion.nomina, actualizadoEn: Date.now()
+  }).then(()=>{ toast('Matriz guardada'); pintarFoco(); })
+    .catch(e=>toast('Error: '+e.message));
+}
+
+/* ═══════════════ ARRANQUE ═══════════════ */
+initApps();
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>navigator.serviceWorker.register('sw.js').catch(e=>console.error(e)));
+}
+suiteAuth.onAuthStateChanged(async user=>{
+  if(user && !sesion){
+    try{ await abrirSesion(user); }
+    catch(e){ console.error(e); try{ await suiteAuth.signOut(); }catch(_){} }
+  } else if(!user){ $('in-nom').focus(); }
+});
+</script>
+</body>
+</html>

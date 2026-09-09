@@ -44,11 +44,19 @@ defecto, que es justamente lo que esta versión necesita.
 informar. Cuando marcar todo conforme es más rápido que registrar un hallazgo,
 el dato se degrada solo.
 
-**Los defectos se concentran y varían por máquina.** De 304 hallazgos, defectos
-de impresión y tonos son el 73%. Pero el reparto cambia: en la RT7 los defectos
-de impresión son el 76% y los tonos el 5%; en la RT6 van casi empatados, 47% y
-45%; en la FL2 los tonos son el 56%. Eso confirma que el foco debe ser por
-máquina, no general.
+**La taxonomía de defectos era demasiado gruesa.** La aplicación registraba
+«Defectos de impresión» y «Tonos». El histórico de merma de la empresa distingue
+**40 defectos específicos**: raya, lagrimeo, manchas, velo, remosqueo, repinte,
+impresión faltante, desprendimiento. La diferencia es decisiva: «defectos de
+impresión» no apunta a ninguna variable de proceso, mientras que «raya» apunta a
+rasqueta, cilindro y sustrato. Con la categoría gruesa, la matriz de la SPEC-005
+habría sido imposible de determinar.
+
+**Los defectos se concentran por máquina.** Analizando 1 095 registros de merma
+de 2025 y 2026: cuatro líneas de 23 explican el 80% de los metros rechazados
+—RT7 con 36.6%, RT6 con 20.1%, FL1 con 19.2% y FL4 con 6.8%—. Por cliente hacen
+falta 12 de 52 para llegar al 80%, y por etiqueta 115 de 336. El foco de la
+inspección va por máquina.
 
 ---
 
@@ -145,11 +153,90 @@ El inspector no debe adivinar qué variables vigilar. La aplicación se lo dice:
 3. Propone vigilar las variables que explican la mayor parte de los defectos
    probables de esa máquina
 
+### El foco se calcula en dos niveles
+
+**Primer nivel, por línea.** Es donde se concentra la merma y el perfil de cada
+equipo es claramente distinto:
+
+| Línea | Sus principales defectos |
+|---|---|
+| RT7 | Lagrimeo 19.6%, raya 17.6%, impresión faltante 13.5%, registro 11.8% |
+| RT6 | **Raya 42.9%**, lagrimeo 13.6%, manchas 11.3%, registro 10.9% |
+| FL1 | Manchas 18.4%, raya 16.4%, repinte 9.3%, remosqueo 7.6% |
+| FL4 | **Tonos 17.6%**, impresión faltante 14.1%, manchas 11.7% |
+
+**Segundo nivel, por etiqueta.** Dentro de una misma línea, etiquetas distintas
+fallan por razones distintas. En la RT7, sus tres etiquetas más costosas: la
+28691 es 100% impresión faltante, la 29355 es desprendimiento y lagrimeo, y la
+28947 es velo. Si la etiqueta que se está corriendo tiene historia suficiente,
+el foco se afina con ella; si no, se queda en el de la línea.
+
 ### Reglas de negocio
-- **El foco es por máquina, no general.** Los datos muestran que el reparto de
-  defectos difiere mucho entre equipos.
+- **El foco es por máquina, no general.** El cliente no sirve para dirigir la
+  inspección: la merma se reparte entre demasiados.
+- **La inspección registra qué etiqueta se está corriendo.** La versión anterior
+  no lo capturaba, y sin ese dato el segundo nivel del foco es imposible.
+- **La prioridad se mide por metros rechazados, no por número de casos.** Es lo
+  que hace el histórico de merma y es más honesto: 16 casos de tonos cuestan más
+  que 27 de punteado. Contar hallazgos trata igual una raya de 50 metros que una
+  de 5 000.
 - **La propuesta es una guía, no una restricción.** El inspector puede revisar
   cualquier variable; la aplicación resalta las que más rinden.
+- **Hace falta un mínimo de historia para afinar por etiqueta.** Con dos o tres
+  registros, el porcentaje es ruido. El umbral lo define Calidad.
+
+### Dos ventanas de tiempo
+
+**Ventana de foco: tres meses naturales.** Es la que determina el peso de cada
+defecto y lo que se le propone vigilar al inspector.
+
+Al abrir la aplicación se posiciona sola en **el mes en curso y los dos
+anteriores**: abierta en septiembre muestra septiembre, agosto y julio. No es una
+ventana móvil de noventa días, son meses completos, que es como se lee un
+tablero de calidad.
+
+**El inspector puede mover la ventana.** Si quiere ver otro trimestre, lo
+selecciona. La aplicación muestra siempre qué periodo está usando, para que nadie
+interprete un número creyendo que es del mes actual.
+
+> **El mes en curso está incompleto.** Abierta el día 9, ese mes lleva nueve días
+> de datos y pesa menos que los dos completos. La aplicación lo indica en vez de
+> presentarlo como si fuera un mes cerrado.
+
+**Ventana de comportamiento: todo el histórico.** Muestra la evolución de cada
+defecto en el tiempo, para saber si **disminuyó, se mantuvo o aumentó**. No pesa
+en el foco, pero da el contexto que el foco por sí solo no da.
+
+Que el peso venga de los tres meses no es un detalle: comparando ambas ventanas
+sobre los 1 095 registros de 2025 y 2026, el orden cambia de verdad.
+
+| Todo el histórico | Últimos tres meses |
+|---|---|
+| Raya 19.3% | Raya **25.6%** |
+| Lagrimeo 10.9% | Manchas **14.2%** |
+| Manchas 10.3% | Lagrimeo 13.0% |
+| Registro 8.1% | **Falta de presión 7.5%** |
+| Impresión faltante 6.9% | Registro 7.3% |
+| Adhesivo 4.9% | Fuera de registro 5.4% |
+
+La falta de presión aparece de la nada en la ventana corta; impresión faltante y
+adhesivo salen del podio. Y por línea el contraste es mayor: en la **FL4** el
+principal defecto histórico son los tonos con 18%, pero en los últimos tres meses
+es **falta de presión con 28%**. Un inspector guiado solo por el histórico
+vigilaría lo que ya se corrigió.
+
+- **El foco pesa por la ventana de tres meses, sin descartar el comportamiento
+  histórico.** La segunda ventana no se usa para ordenar, se usa para entender.
+- **En una línea de poca actividad, la ventana se amplía sola.** Si en los tres
+  meses apenas hay registros de esa máquina, el foco se calcularía sobre ruido.
+  La aplicación retrocede hasta juntar historia suficiente y **dice con qué
+  periodo lo hizo**, para que el inspector sepa que está viendo algo más viejo. La
+  alternativa —mostrar un foco débil con la misma seguridad que uno sólido— es
+  peor que no mostrarlo.
+- **La tendencia se muestra junto a cada defecto del foco.** Saber que la raya
+  pasó de 19.3% a 25.6% —que va en aumento— cambia la urgencia con que se
+  atiende, frente a un defecto que baja y probablemente ya tiene una acción
+  surtiendo efecto.
 
 ---
 
@@ -175,8 +262,13 @@ Para cada defecto, qué variables de proceso lo provocan y con qué peso relativ
   defectos históricos, sin sugerir variables. No es un requisito para publicar.
 
 ### Pendiente de definir
-El contenido. Basta empezar por los defectos que concentran el grueso:
-**defectos de impresión** y **tonos**, que son el 73% de lo reportado.
+El contenido. Con **13 de los 40 defectos se cubre el 80%** de los metros
+rechazados, así que no hace falta agotar la lista para que la matriz sirva. Por
+peso conviene empezar por: raya 19.3%, lagrimeo 10.9%, manchas 10.3%, registro
+8.1%, impresión faltante 6.9%, adhesivo 4.9% y velo 4.8%.
+
+Y conviene revisarlos por línea, porque la causa puede diferir: la raya es el 43%
+de la merma de la RT6 y el 17.6% de la RT7.
 
 ---
 
@@ -235,7 +327,12 @@ revisar, cuántos defectos se aceptan y a partir de cuántos se rechaza.
 
 **Estado:** pendiente
 
-### Qué se hereda
+### El catálogo de defectos
+Se adopta la **taxonomía de 40 defectos** del histórico de merma de la empresa,
+no la de la versión anterior. Es la que usa producción para medir el costo, y es
+lo bastante específica como para poder asociarle causas.
+
+### Qué se hereda de las variables
 Los **54 criterios** de la versión anterior, con su método de medición,
 especificación y tolerancia. Están repartidos en genérica, máquinas, producto,
 refilado, pegado, revisado y corte, más criterios específicos de la OMET X6 530
@@ -250,6 +347,50 @@ Es el único contenido irreemplazable de la versión anterior y se conserva.
   el catálogo conviene revisar cuáles siguen vigentes: las secciones de
   seguridad, materiales y documentación no reprobaron ni una vez en tres meses,
   lo que sugiere que se marcan por trámite.
+
+---
+
+# SPEC-011 — Historial de merma como semilla del foco
+
+**Estado:** pendiente
+**Origen:** el histórico de merma de la empresa, 1 095 registros de 2025 y 2026
+
+### Por qué existe
+Sin historia, la aplicación tarda meses en poder decirle algo con fundamento al
+inspector, y ese fue justamente el vacío de la versión anterior. Cargando el
+histórico, **el foco de la SPEC-004 funciona desde el primer día** con dos años
+de datos reales.
+
+### Flujo principal
+1. `ADMIN` carga el archivo de merma en formato Excel
+2. Sistema reconoce fecha, pedido, línea, etiqueta, cliente, defecto y metros
+   rechazados
+3. Sistema muestra un resumen previo: cuántos registros, qué rango de fechas, y
+   qué defectos o líneas no reconoce
+4. Usuario confirma y los registros quedan marcados como **semilla**
+
+### Reglas de negocio
+- **La semilla y los hallazgos son cosas distintas y no se mezclan.** El histórico
+  registra merma consumada por pedido; un hallazgo registra algo detectado en el
+  momento, que muchas veces evita la merma. Ambos alimentan el foco, pero se
+  guardan por separado y se distinguen en pantalla.
+- **La semilla se puede recargar.** Cargar el archivo otra vez reemplaza la
+  semilla anterior, no la duplica. La clave es fecha, pedido y defecto.
+- **La aplicación avisa cuando la semilla envejece.** Los datos vienen de
+  papeletas que se llenan a mano y se transcriben, así que si nadie recarga, el
+  foco se queda hablando del año pasado. Si el registro más reciente tiene más de
+  cierto tiempo, se muestra desde cuándo no se actualiza.
+- **Los defectos del archivo deben corresponder al catálogo de 40.** Los que no
+  se reconozcan se reportan y no se cargan, en vez de entrar como categorías
+  nuevas que ensucian el análisis.
+
+### Sobre la papeleta
+Hoy la merma se anota a mano en papeletas y alguien la transcribe a Excel. Esta
+spec **no cambia ese proceso**: la aplicación consume el resultado.
+
+Que la aplicación llegue a sustituir la papeleta es la evolución natural, pero es
+otro alcance: toca a producción, no solo a calidad, y conviene decidirlo cuando
+esta versión ya esté en uso. Anotarlo aquí evita que se cuele sin querer.
 
 ---
 
@@ -282,9 +423,13 @@ suite: la cuota del plan gratuito es por proyecto.
   ingeniería de procesos.
 - **El criterio de muestreo** (SPEC-006): niveles, valores de AQL y si el cambio
   de severidad se automatiza.
-- **El histórico de defectos de 2025 y 2026**, seccionado por máquina, etiqueta y
-  cliente. Puede cambiar el modelo: si los defectos se concentran por etiqueta o
-  por cliente y no solo por máquina, el foco que se le muestra al inspector debe
-  considerarlo.
+- **El umbral de historia** a partir del cual se afina el foco por etiqueta
+  (SPEC-004).
+- **Cada cuánto se recarga la semilla de merma** y quién es responsable de
+  hacerlo (SPEC-011). Sin eso, el aviso histórico envejece sin que nadie lo note.
+- **Si la ventana de tres meses es fija o configurable.** Se definió en tres
+  meses; queda por decidir si Calidad puede ajustarla sin tocar código.
+- **A partir de cuántos registros se considera que una línea tiene poca
+  actividad** y hasta dónde se amplía su ventana (SPEC-004). Lo define Calidad.
 - **Quiénes son los inspectores de calidad** y quiénes los supervisores que
   atienden, para asignar `apps` y `roles.calidad` en la suite.
