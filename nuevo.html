@@ -206,6 +206,15 @@ input:focus,select:focus,textarea:focus{border-color:var(--navy-mid)}
     </div>
 
     <div class="card">
+      <div class="card-t">Variables de proceso vigiladas</div>
+      <div style="font-size:12.5px;color:var(--text2);margin-bottom:10px">
+        Son las que provocan los defectos de arriba. Revisarlas es lo que evita la
+        merma; la inspección de producto solo la detecta cuando ya ocurrió.
+      </div>
+      <div id="variables"></div>
+    </div>
+
+    <div class="card">
       <div class="card-t">Inspección de producto</div>
       <div style="font-size:12.5px;color:var(--text2);margin-bottom:12px">
         Semiterminado o terminado. El resultado es binario.
@@ -252,6 +261,26 @@ input:focus,select:focus,textarea:focus{border-color:var(--navy-mid)}
     </div>
   </section>
 
+  <!-- Merma (admin) -->
+  <section id="pg-merma" class="hide">
+    <div class="card">
+      <div class="card-t">Histórico de merma</div>
+      <div class="aviso" id="merma-estado">—</div>
+      <div style="font-size:12.5px;color:var(--text2);line-height:1.55;margin-bottom:12px">
+        Es lo que alimenta el foco de cada máquina. Los datos vienen de las papeletas
+        que se llenan a mano y se transcriben, así que si nadie recarga el archivo, el
+        foco se queda hablando del año pasado.<br><br>
+        Columnas requeridas: <code>Fecha</code>, <code>Linea</code>, <code>Defecto</code>
+        y <code>Mts rechazados</code>. Verás un resumen antes de que se guarde nada.
+      </div>
+      <input type="file" id="f-excel" accept=".xlsx,.xls" style="display:none" onchange="leerExcelMerma(event)">
+      <button class="btn btn-2" onclick="document.getElementById('f-excel').click()">
+        Seleccionar archivo de merma
+      </button>
+      <div id="merma-previa"></div>
+    </div>
+  </section>
+
   <!-- Matriz (admin) -->
   <section id="pg-matriz" class="hide">
     <div class="card">
@@ -278,6 +307,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--navy-mid)}
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-check-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <script>
 /* ═══════════════════════════════════════════════════════════════════════
@@ -292,6 +322,9 @@ const DEFECTOS = DATOS.defectos;
 const MAQUINAS = DATOS.maquinas;
 
 let db=null, suiteAuth=null, suiteDb=null;
+let SEMILLA_CARGADA = null;   // la que suba el administrador desde Excel
+let vigiladas = {};           // estado de las variables en la inspección en curso
+let previaMerma = null;
 let sesion=null;                       // {nomina, nombre, rol}
 let DB={hallazgos:[], inspecciones:[], matriz:{}};
 let pendiente=null;                    // inspección en curso, esperando defectos
@@ -377,7 +410,8 @@ const PAGINAS = [
   {id:'acciones',   nom:'Acciones',      roles:['INSPECTOR','SUPERVISOR','ADMIN']},
   {id:'historial',  nom:'Historial',     roles:['INSPECTOR','SUPERVISOR','ADMIN']},
   {id:'tendencia',  nom:'Comportamiento',roles:['INSPECTOR','SUPERVISOR','ADMIN']},
-  {id:'matriz',     nom:'Matriz',        roles:['ADMIN']}
+  {id:'matriz',     nom:'Matriz',        roles:['ADMIN']},
+  {id:'merma',      nom:'Merma',         roles:['ADMIN']}
 ];
 function armarNav(){
   const vis = PAGINAS.filter(p=>p.roles.includes(sesion.rol));
@@ -393,6 +427,7 @@ function verPagina(id, btn){
   if(id==='historial') pintarHistorial();
   if(id==='tendencia') pintarTendencia();
   if(id==='matriz')    cargarMatriz();
+  if(id==='merma')     pintarEstadoMerma();
 }
 
 function poblarSelects(){
@@ -421,6 +456,13 @@ function conectar(){
     });
   });
   db.ref('cal/matriz').on('value', s=>{ DB.matriz = s.val()||{}; pintarFoco(); });
+  db.ref('cal/merma').on('value', s=>{
+    const v = s.val();
+    SEMILLA_CARGADA = v && v.datos ? v.datos : null;
+    DB.mermaMeta = v ? {cargadoEn:v.cargadoEn, cargadoPor:v.cargadoPor,
+                        registros:v.registros, ultimoMes:v.ultimoMes} : null;
+    pintarFoco(); pintarEstadoMerma();
+  });
 }
 
 /* ═══════════════ VENTANAS DE TIEMPO (SPEC-004) ═══════════════
@@ -440,10 +482,14 @@ const nombreMes = m => {
           'septiembre','octubre','noviembre','diciembre'][+x] + ' ' + a;
 };
 
+// La semilla vigente: la que cargó el administrador si existe, y si no, la
+// que viene incrustada con el histórico de 2025 y 2026.
+function semillaVigente(){ return SEMILLA_CARGADA || SEMILLA; }
+
 // Metros por defecto de una máquina, en un conjunto de meses.
 function metrosPorDefecto(maquina, meses){
   const out={};
-  const sm = SEMILLA[maquina]||{};
+  const sm = semillaVigente()[maquina]||{};
   Object.keys(sm).forEach(def=>{
     meses.forEach(m=>{ if(sm[def][m]) out[def]=(out[def]||0)+sm[def][m]; });
   });
@@ -476,7 +522,7 @@ function calcularFoco(maquina){
 
 // Comparación contra todo el histórico, para saber si el defecto sube o baja.
 function tendencia(maquina, defecto, pctFoco){
-  const sm=(SEMILLA[maquina]||{});
+  const sm=(semillaVigente()[maquina]||{});
   let tot=0, ddef=0;
   Object.keys(sm).forEach(d=>Object.keys(sm[d]).forEach(m=>{
     tot+=sm[d][m]; if(d===defecto) ddef+=sm[d][m];
@@ -486,6 +532,52 @@ function tendencia(maquina, defecto, pctFoco){
   if(dif >  2) return {txt:'▲ sube', cls:'t-up'};
   if(dif < -2) return {txt:'▼ baja', cls:'t-down'};
   return {txt:'= igual', cls:'t-eq'};
+}
+
+/* Variables que el inspector debe vigilar en esta máquina. Salen de la matriz,
+   asociadas a los defectos que más pesan. Es el enfoque preventivo: revisarlas
+   evita la merma, mientras que la inspección de producto solo la detecta. */
+function pintarVariables(){
+  const maq = $('f-maquina').value;
+  const f = calcularFoco(maq);
+  const vistas = new Set(); const filas = [];
+  f.lista.forEach(x=>{
+    variablesDe(x.defecto, maq).forEach(v=>{
+      if(vistas.has(v)) return;
+      vistas.add(v);
+      filas.push({variable:v, porque:x.defecto});
+    });
+  });
+  if(!filas.length){
+    $('variables').innerHTML = `<div class="aviso">Todavía no hay variables asociadas a
+      los defectos de esta máquina. Se capturan en la pestaña Matriz, con lo que
+      defina la junta de calidad, producción e ingeniería de procesos.</div>`;
+    vigiladas = {}; return;
+  }
+  vigiladas = {};
+  $('variables').innerHTML = filas.map((f2,i)=>{
+    vigiladas[f2.variable] = 'sin revisar';
+    return `<div style="padding:10px 0;border-bottom:1px solid var(--line)">
+      <div style="font-size:13.5px;font-weight:600">${esc(f2.variable)}</div>
+      <div style="font-size:11px;color:var(--text2);margin-bottom:7px">
+        se vigila por: ${esc(f2.porque)}</div>
+      <div class="row" style="gap:6px">
+        <button class="btn btn-2 btn-sm" style="flex:1" id="v${i}-ok"
+          onclick="marcarVariable('${esc(f2.variable)}','conforme',${i})">Conforme</button>
+        <button class="btn btn-2 btn-sm" style="flex:1" id="v${i}-no"
+          onclick="marcarVariable('${esc(f2.variable)}','desviada',${i})">Desviada</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function marcarVariable(v, estado, i){
+  vigiladas[v] = estado;
+  const ok=$('v'+i+'-ok'), no=$('v'+i+'-no');
+  ok.style.background = estado==='conforme' ? 'var(--green)' : '#fff';
+  ok.style.color      = estado==='conforme' ? '#fff' : 'var(--navy)';
+  no.style.background = estado==='desviada' ? 'var(--red)' : '#fff';
+  no.style.color      = estado==='desviada' ? '#fff' : 'var(--navy)';
 }
 
 function pintarFoco(){
@@ -523,6 +615,7 @@ function pintarFoco(){
       no tienen variables asociadas. Se capturan en la pestaña Matriz.</div>`;
   }
   $('foco').innerHTML = html;
+  pintarVariables();
 }
 
 function variablesDe(defecto, maquina){
@@ -545,7 +638,10 @@ function resolver(pasa){
     // nómina tal como estaban. El inspector es quien inició sesión, no un
     // nombre elegido de una lista.
     inspectorNomina: sesion.nomina, inspectorNombre: sesion.nombre,
-    resultado: pasa ? 'pasa' : 'no pasa'
+    resultado: pasa ? 'pasa' : 'no pasa',
+    // Enfoque preventivo: qué variables se revisaron y cómo salieron.
+    variables: vigiladas,
+    variablesDesviadas: Object.keys(vigiladas).filter(k=>vigiladas[k]==='desviada')
   };
   if(pasa){
     db.ref('cal/inspecciones').push(base)
@@ -732,7 +828,7 @@ function pintarHistorial(){
    disminuyó, se mantuvo o aumentó. No pesa en el foco, da contexto. */
 function pintarTendencia(){
   const maq=$('t-maquina').value, def=$('t-defecto').value;
-  const sm=(SEMILLA[maq]||{})[def]||{};
+  const sm=(semillaVigente()[maq]||{})[def]||{};
   const meses = Object.keys(sm).sort();
   if(!meses.length){
     $('tendencia').innerHTML='<div class="vacio">Sin registros de este defecto en esta máquina.</div>';
@@ -748,6 +844,127 @@ function pintarTendencia(){
       <div class="foco-bar"><i style="width:${Math.round(100*sm[m]/max)}%"></i></div>
       <div class="foco-pct">${sm[m].toLocaleString('es-MX')}</div>
     </div>`).join('');
+}
+
+/* ═══════════════ HISTÓRICO DE MERMA (SPEC-011) ═══════════════
+   Los datos vienen de papeletas transcritas a mano, así que si nadie recarga
+   el archivo el foco se queda viejo sin decirlo. Por eso la pantalla muestra
+   desde cuándo no se actualiza. */
+function pintarEstadoMerma(){
+  const e = $('merma-estado'); if(!e) return;
+  const m = DB.mermaMeta;
+  if(!m){
+    e.className='aviso';
+    e.innerHTML = `Se está usando el histórico incrustado en la aplicación, con los
+      datos de 2025 y 2026. Carga el archivo cuando quieras actualizarlo.`;
+    return;
+  }
+  const meses = mesesDesde(m.ultimoMes);
+  const viejo = meses >= 3;
+  e.className = 'aviso' + (viejo ? ' aviso-amber' : '');
+  e.innerHTML = `${m.registros} registros, hasta ${nombreMes(m.ultimoMes)}.
+    Cargado por ${esc(m.cargadoPor)} el ${esc((m.cargadoEn||'').slice(0,10))}.` +
+    (viejo ? `<br><b>El dato más reciente tiene ${meses} meses.</b> El foco está
+      hablando de un periodo que ya pasó; conviene recargar el archivo.` : '');
+}
+
+function mesesDesde(mes){
+  if(!mes) return 99;
+  const [a,m] = mes.split('-').map(Number), hoy = new Date();
+  return (hoy.getFullYear()-a)*12 + (hoy.getMonth()+1-m);
+}
+
+function leerExcelMerma(ev){
+  const file = ev.target.files[0]; if(!file) return;
+  const lector = new FileReader();
+  lector.onload = e => {
+    try{
+      const wb = XLSX.read(e.target.result, {type:'binary', cellDates:true});
+      const filas = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+      procesarMerma(filas);
+    }catch(err){ toast('No se pudo leer el archivo: '+err.message); }
+    ev.target.value='';
+  };
+  lector.onerror = ()=>{ toast('Error al leer el archivo'); ev.target.value=''; };
+  lector.readAsBinaryString(file);
+}
+
+function procesarMerma(filas){
+  const col = (r,...n) => { for(const k of n) if(r[k]!==undefined) return r[k]; return undefined; };
+  const datos = {}, rechazadas = [];
+  let usadas = 0, minMes = '9999-99', maxMes = '0000-00';
+  const validos = new Set(DEFECTOS);
+
+  filas.forEach((r,i)=>{
+    const fila = i+2;
+    const f  = col(r,'Fecha','FECHA','fecha');
+    const ln = String(col(r,'Linea','LINEA','Línea')||'').trim();
+    const de = String(col(r,'Defecto','DEFECTO','defecto')||'').trim().toUpperCase();
+    const mt = parseFloat(col(r,'Mts rechazados','MTS RECHAZADOS','Metros rechazados'));
+
+    if(!f || !ln || !de){ rechazadas.push({fila, motivo:'falta fecha, línea o defecto'}); return; }
+    if(isNaN(mt) || mt<=0){ rechazadas.push({fila, motivo:'metros rechazados inválidos'}); return; }
+    if(!validos.has(de)){ rechazadas.push({fila, motivo:'defecto fuera del catálogo: '+de}); return; }
+
+    const d = (f instanceof Date) ? f : new Date(f);
+    if(isNaN(d.getTime())){ rechazadas.push({fila, motivo:'fecha ilegible'}); return; }
+    const mes = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+    if(mes < minMes) minMes = mes;
+    if(mes > maxMes) maxMes = mes;
+
+    datos[ln] = datos[ln] || {};
+    datos[ln][de] = datos[ln][de] || {};
+    datos[ln][de][mes] = (datos[ln][de][mes]||0) + Math.round(mt);
+    usadas++;
+  });
+
+  if(!usadas){
+    $('merma-previa').innerHTML = `<div class="aviso aviso-amber">No se pudo usar ninguna
+      fila. Revisa que el archivo traiga las columnas Fecha, Linea, Defecto y
+      Mts rechazados.</div>`;
+    return;
+  }
+
+  previaMerma = {datos, usadas, minMes, maxMes, lineas:Object.keys(datos).length};
+  const porMotivo = {};
+  rechazadas.forEach(r=>porMotivo[r.motivo]=(porMotivo[r.motivo]||0)+1);
+
+  $('merma-previa').innerHTML = `
+    <div class="card" style="margin-top:14px;box-shadow:none">
+      <div class="card-t">Revisa antes de guardar</div>
+      <div class="aviso">Todavía no se ha guardado nada. Al confirmar, esta carga
+        <b>reemplaza</b> la anterior, no se suma a ella.</div>
+      <div class="foco-item"><div class="foco-nom">Registros que se van a usar</div>
+        <div class="foco-pct">${previaMerma.usadas}</div></div>
+      <div class="foco-item"><div class="foco-nom">Líneas distintas</div>
+        <div class="foco-pct">${previaMerma.lineas}</div></div>
+      <div class="foco-item"><div class="foco-nom">Periodo</div>
+        <div class="foco-pct" style="min-width:150px">${nombreMes(minMes)} a ${nombreMes(maxMes)}</div></div>
+      <div class="foco-item"><div class="foco-nom">Filas rechazadas</div>
+        <div class="foco-pct">${rechazadas.length}</div></div>
+      ${rechazadas.length ? `<div style="font-size:11.5px;color:var(--text2);margin-top:9px;line-height:1.6">
+        ${Object.keys(porMotivo).map(m=>`${porMotivo[m]} × ${esc(m)}`).join('<br>')}</div>` : ''}
+      <div class="row" style="margin-top:14px">
+        <button class="btn btn-2" style="margin:0" onclick="cancelarMerma()">Cancelar</button>
+        <button class="btn" style="margin:0" onclick="confirmarMerma()">Guardar</button>
+      </div>
+    </div>`;
+}
+
+function cancelarMerma(){ previaMerma=null; $('merma-previa').innerHTML=''; }
+
+function confirmarMerma(){
+  if(!previaMerma) return;
+  db.ref('cal/merma').set({
+    datos: previaMerma.datos,
+    registros: previaMerma.usadas,
+    ultimoMes: previaMerma.maxMes,
+    cargadoPor: sesion.nomina,
+    cargadoEn: new Date().toISOString()
+  }).then(()=>{
+    toast('Histórico actualizado');
+    cancelarMerma();
+  }).catch(e=>toast('Error: '+e.message));
 }
 
 /* ═══════════════ MATRIZ (SPEC-005) ═══════════════
